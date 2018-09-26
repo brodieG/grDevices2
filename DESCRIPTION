@@ -1,0 +1,10 @@
+Package: grDevices0
+Version: 3.6.0.0
+Title: The R Graphics Devices and Support for Colours and Fonts
+Author: R Core Team and contributors worldwide
+Maintainer: R Core Team <R-core@r-project.org>
+Description: Graphics devices and support for base and grid graphics. Modified
+  for testing of convertColor improvements.
+License: Part of R r75366
+Suggests: KernSmooth
+NeedsCompilation: yes
