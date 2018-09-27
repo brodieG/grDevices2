@@ -285,7 +285,7 @@ convertColor <-
       mc <- match.call()
       if (is.null(mc$from.ref.white) || is.null(mc$to.ref.white))
           warning("color spaces use different reference whites")
-      xyz <- t(chromaticAdaptation(xyz, from.ref.white, to.ref.white))
+      xyz <- chromaticAdaptation(xyz, from.ref.white, to.ref.white)
   }
 
   rval <- to$fromXYZ(xyz, to.ref.white)
