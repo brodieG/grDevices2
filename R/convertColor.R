@@ -131,39 +131,34 @@ colorspaces <-
          colorConverter(fromXYZ = function(XYZ, white) {
              stopifnot(length(XYZ) == 3 | ncol(XYZ) == 3L)
              white <- rep(white, length.out=3L)
-             if (is.null(nrow(XYZ)))
-               XYZ <- matrix(XYZ, nrow = 1L)
+             if (is.null(nrow(XYZ))) XYZ <- matrix(XYZ, nrow = 1L)
 
              epsilon <- 216/24389
              kappa <- 24389/27
 
              # Alternate is `%*% diag(1/white)`, but produces different results
              # if there are non-finite values
-             xyzr <- cbind(
-               XYZ[,1L] / white[1L],
-               XYZ[,2L] / white[2L],
-               XYZ[,3L] / white[3L]
-             )
+             xyzr <- cbind(XYZ[,1L] / white[1L],
+                           XYZ[,2L] / white[2L],
+                           XYZ[,3L] / white[3L])
              fxyz <- ifelse(xyzr <= epsilon, (kappa*xyzr+16)/116, xyzr^(1/3))
 
              res <- cbind(L = 116*fxyz[,2L]-16,
-               a = 500*(fxyz[,1L]-fxyz[,2L]),
-               b = 200*(fxyz[,2L]-fxyz[,3L]))
+                          a = 500*(fxyz[,1L]-fxyz[,2L]),
+                          b = 200*(fxyz[,2L]-fxyz[,3L]))
              if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
          },
          toXYZ = function(Lab, white) {
              stopifnot(ncol(Lab) == 3L | length(Lab)==3)
              white <- rep(white, length.out=3L)
-             if (is.null(nrow(Lab)))
-               Lab <- matrix(Lab, nrow = 1L)
+             if (is.null(nrow(Lab))) Lab <- matrix(Lab, nrow = 1L)
 
              epsilon <- 216/24389
              kappa <- 24389/27
 
-             yr <- ifelse(
-               Lab[,1L] < kappa*epsilon, Lab[,1L]/kappa, ((Lab[,1L]+16)/116)^3
-             )
-             fy <- (ifelse(yr <= epsilon, kappa*yr, Lab[,1L]) + 16)/116
+             yr <- ifelse(Lab[,1L] < kappa*epsilon,
+                          Lab[,1L]/kappa, ((Lab[,1L]+16)/116)^3)
+             fy <- (ifelse(yr <= epsilon, kappa*yr, Lab[,1L])+16)/116
              fx <- Lab[,2L]/500+fy
              fz <- fy-Lab[,3L]/200
 
@@ -182,7 +177,7 @@ colorspaces <-
 
              yr <- XYZ[,2L]/white[2L]
 
-             denom  <- rowSums(cbind(XYZ[,1L], XYZ[,2L] * 15, XYZ[,3L] * 3))
+             denom  <- rowSums(cbind(XYZ[,1L], XYZ[,2L]*15, XYZ[,3L]*3))
              wdenom <- sum(white*c(1,15,3))
 
              u1 <- ifelse(denom == 0, 1, 4*XYZ[,1L]/denom)
@@ -201,7 +196,7 @@ colorspaces <-
              v0 <- 9*white[2L]/(white[1L]+15*white[2L]+3*white[3L])
 
              Y <- ifelse(Luv[,1L] <= kappa*epsilon,
-                     Luv[,1L]/kappa, ((Luv[,1L]+16)/116)^3)
+                         Luv[,1L]/kappa, ((Luv[,1L]+16)/116)^3)
              a <- (52*Luv[,1L]/(Luv[,2L]+13*Luv[,1L]*u0)-1)/3
              b <- -5*Y
              c <- -1/3
@@ -292,7 +287,7 @@ convertColor <-
       mc <- match.call()
       if (is.null(mc$from.ref.white) || is.null(mc$to.ref.white))
           warning("color spaces use different reference whites")
-      xyz <- t(chromaticAdaptation(t(xyz), from.ref.white, to.ref.white))
+      xyz <- t(chromaticAdaptation(xyz, from.ref.white, to.ref.white))
   }
 
   rval <- to$fromXYZ(xyz, to.ref.white)
