@@ -26,10 +26,11 @@ ranges.sub <- ranges[,,match(space.sub, space.sub)]
 # For each input space, generate permutation of values in range, outside of
 # range, along with NA, NaN, Inf, -Inf cases.
 
-space.input <- interpolate_space(ranges.sub, na=FALSE, inf=FALSE, steps=32)
+space.input <- interpolate_space(ranges.sub, na=FALSE, inf=FALSE, steps=16)
 
 # - Compare Convert Color ------------------------------------------------------
 
 cc0 <- color_to_color(space.input, fun=grDevices0::convertColor)
 cc1 <- color_to_color(space.input, fun=grDevices1::convertColor)
 
+grDevices1::convertColor(space.input$sRGB, 'sRGB', 'CIE RGB')

@@ -293,9 +293,6 @@ convertColor <-
   if (inherits(to,"RGBcolorConverter"))
       rval <- trim(rval)
 
-  if (is.matrix(rval))
-      rval <- t(rval)
-
   if (is.null(scale.out))
       rval
   else
