@@ -136,8 +136,6 @@ colorspaces <-
              epsilon <- 216/24389
              kappa <- 24389/27
 
-             # Alternate is `%*% diag(1/white)`, but produces different results
-             # if there are non-finite values
              xyzr <- cbind(XYZ[,1L] / white[1L],
                            XYZ[,2L] / white[2L],
                            XYZ[,3L] / white[3L])
