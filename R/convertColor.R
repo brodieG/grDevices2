@@ -290,6 +290,9 @@ convertColor <-
 
   rval <- to$fromXYZ(xyz, to.ref.white)
 
+  if(is.null(nrow(rval)))
+      rval <- t(rval)
+
   if (inherits(to,"RGBcolorConverter"))
       rval <- trim(rval)
 
