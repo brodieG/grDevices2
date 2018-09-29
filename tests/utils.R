@@ -38,7 +38,7 @@ color_to_color <- function(
 ##   colorspace, and the last dimension the colorspaces.
 
 interpolate_space <- function(
-  ranges, steps=16, expand=c(0.2, 1e6), na=TRUE, inf=TRUE
+  ranges, steps=16, expand=c(0.2, 1e6), na=FALSE, nan=FALSE, inf=FALSE
 ) {
   stopifnot(
     identical(head(dim(ranges), 2), c(2L, 3L)), length(dim(ranges)) == 3
@@ -53,7 +53,7 @@ interpolate_space <- function(
             seq(from=y[1], to=y[2], length.out=steps),
             min(y) - diff(range(y)) * expand,
             max(y) + diff(range(y)) * expand,
-            if(na) c(NA, NaN), if(inf) c(Inf, -Inf)
+            if(na) NA, if(nan) NaN, if(inf) c(-Inf, Inf)
           )
         }
       )
@@ -65,3 +65,23 @@ interpolate_space <- function(
 }
 
 
+matrix.equal <- function(target, current) {
+  stopifnot(
+    !is.null(dim(target)), identical(dim(target), dim(current))
+  )
+  res <- matrix(logical(length(target)), nrow(target), nrow(current))
+  for(i in seq_len(nrow(target)))
+    for(j in seq_len(ncol(target)))
+      res[i, j] <- isTRUE(all.equal(target[[i, j]], current[[i, j]]))
+  res
+}
+matrix.identical <- function(target, current) {
+  stopifnot(
+    !is.null(dim(target)), identical(dim(target), dim(current))
+  )
+  res <- matrix(logical(length(target)), nrow(target), nrow(current))
+  for(i in seq_len(nrow(target)))
+    for(j in seq_len(ncol(target)))
+      res[i, j] <- identical(target[[i, j]], current[[i, j]])
+  res
+}
