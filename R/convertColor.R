@@ -48,12 +48,12 @@ make.rgb <-
         dogamma <- function(x) x %^% gamma
         ungamma <- function(x) x %^% (1/gamma)
     } else if (gamma == "sRGB") {
-        dogamma <- function(x) ifelse(x < 0.04045,
-                                      x/12.92,
-                                      ((x+0.055)/1.055)^2.4)
-        ungamma <- function(x) ifelse(x <= 0.0031308,
-                                      12.92*x,
-                                      1.055*x %^% (1/2.4)-0.055)
+        dogamma <- function(x) .ifelse(x < 0.04045,
+                                       x/12.92,
+                                       ((x+0.055)/1.055)^2.4)
+        ungamma <- function(x) .ifelse(x <= 0.0031308,
+                                       12.92*x,
+                                       1.055*x %^% (1/2.4)-0.055)
     } else stop("'gamma' must be a scalar or 'sRGB'")
 
     toXYZ <- function(rgb,...) { dogamma(rgb) %*% M }
@@ -139,7 +139,7 @@ colorspaces <-
              xyzr <- cbind(XYZ[,1L] / white[1L],
                            XYZ[,2L] / white[2L],
                            XYZ[,3L] / white[3L])
-             fxyz <- ifelse(xyzr <= epsilon, (kappa*xyzr+16)/116, xyzr^(1/3))
+             fxyz <- .ifelse(xyzr <= epsilon, (kappa*xyzr+16)/116, xyzr^(1/3))
 
              res <- cbind(L = 116*fxyz[,2L]-16,
                           a = 500*(fxyz[,1L]-fxyz[,2L]),
@@ -154,14 +154,17 @@ colorspaces <-
              epsilon <- 216/24389
              kappa <- 24389/27
 
-             yr <- ifelse(Lab[,1L] < kappa*epsilon,
-                          Lab[,1L]/kappa, ((Lab[,1L]+16)/116)^3)
-             fy <- (ifelse(yr <= epsilon, kappa*yr, Lab[,1L])+16)/116
+             L <- Lab[,1L]
+             yr <- .ifelse(L < kappa*epsilon,
+                           L/kappa, pow3((L+16)/116)
+             fy <- (.ifelse(yr <= epsilon, kappa*yr, L)+16)/116
              fx <- Lab[,2L]/500+fy
              fz <- fy-Lab[,3L]/200
 
-             zr <- ifelse(fz^3 <= epsilon, (116*fz-16)/kappa, fz^3)
-             xr <- ifelse(fx^3 <= epsilon, (116*fx-16)/kappa, fx^3)
+             fz3 <- pow3(fz)
+             fx3 <- pow3(fx)
+             zr <- .ifelse(fz3 <= epsilon, (116*fz-16)/kappa, fz3)
+             xr <- .ifelse(fx3 <= epsilon, (116*fx-16)/kappa, fx3)
 
              res <- cbind(X = xr*white[1], Y = yr*white[2], Z = zr*white[3])
 
@@ -178,12 +181,13 @@ colorspaces <-
              denom  <- rowSums(cbind(XYZ[,1L], XYZ[,2L]*15, XYZ[,3L]*3))
              wdenom <- sum(white*c(1,15,3))
 
-             u1 <- ifelse(denom == 0, 1, 4*XYZ[,1L]/denom)
-             v1 <- ifelse(denom == 0, 1, 9*XYZ[,2L]/denom)
+             one <- rep_len(1, length(denom))
+             u1 <- .ifelse(denom == 0, one, 4*XYZ[,1L]/denom)
+             v1 <- .ifelse(denom == 0, one, 9*XYZ[,2L]/denom)
              ur <- 4*white[1L]/wdenom
              vr <- 9*white[2L]/wdenom
 
-             L <- ifelse(yr <= epsilon, kappa*yr, 116*(yr^(1/3))-16)
+             L <- .ifelse(yr <= epsilon, kappa*yr, 116*(yr^(1/3))-16)
              res <- cbind(L = L, u = 13*L*(u1-ur), v = 13*L*(v1-vr))
              if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
          }, toXYZ = function(Luv,white) {
@@ -193,29 +197,27 @@ colorspaces <-
              u0 <- 4*white[1L]/(white[1L]+15*white[2L]+3*white[3L])
              v0 <- 9*white[2L]/(white[1L]+15*white[2L]+3*white[3L])
 
-             Y <- ifelse(Luv[,1L] <= kappa*epsilon,
-                         Luv[,1L]/kappa, ((Luv[,1L]+16)/116)^3)
-             a <- (52*Luv[,1L]/(Luv[,2L]+13*Luv[,1L]*u0)-1)/3
+             L <- Luv[,1L]
+             Y <- .ifelse(L <= kappa*epsilon,
+                          L/kappa, pow3((L+16)/116))
+             a <- (52*L/(Luv[,2L]+13*L*u0)-1)/3
              b <- -5*Y
              c <- -1/3
-             d <- Y*(39*Luv[,1L]/(Luv[,3L]+13*Luv[,1L]*v0)-5)
+             d <- Y*(39*L/(Luv[,3L]+13*L*v0)-5)
 
              X <- (d-b)/(a-c)
              Z <- X*a+b
 
              res <- cbind(X = X,Y = Y,Z = Z)
 
-             res[which(Luv[,1L] == 0L),] <- c(0,0,0)
+             res[which(L == 0L),] <- c(0,0,0)
              if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
          }, name = "Luv", white = NULL)
 
          ) # colorspaces
 
 
-`%^%` <- function(a,b) {
-  ifelse(a <= 0, -abs(a)^b, a^b)
-}
-
+`%^%` <- function(a,b) sign(a) * (abs(a) ^ b)
 
 convertColor <-
     function(color, from, to,
@@ -326,3 +328,19 @@ adjustcolor <- function(col, alpha.f = 1, red.f = 1, green.f = 1,
                         matrix(offset, nrow = 4L, ncol = ncol(x))))
     rgb(x[1L,], x[2L,], x[3L,], x[4L,])
 }
+## Simplified version of `ifelse` with constraints:
+##
+## * test, yes, and no must be the same length
+## * test must be logical
+## * yes and no must be numeric
+## * if test is NA, then `no` is returned, which is particularly okay if it is
+##   the case that when test is NA so is NO, as tends to be the case here.
+
+.ifelse <- function(test, yes, no) {
+  test.w <- which(test)
+  no[test.w] <- yes[test.w]
+  no
+}
+## Benchmarks show x ^ 3 is much slower than x * x * x
+
+pow3 <- function(x) x * x * x
