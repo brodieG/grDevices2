@@ -1,14 +1,21 @@
 ## Run all permutations of colorspace to colorspace translation
+##
+## @param time, if 0, just run the function, if greater than zero, run the
+##   function that many times and time the result with microbenchmark.
 
 color_to_color <- function(
-  col, fun, spaces=names(col), strip.names=TRUE, time=FALSE
+  col, fun, spaces=names(col), strip.names=TRUE, time=0L
 ) {
   from.to <- subset(
     do.call(expand.grid, list(from=spaces, to=spaces, stringsAsFactors=FALSE)),
     from != to
   )
   fun_t <- function(...) {
-    res <- try(if(time) system.time(fun(...))[3] else fun(...), silent=TRUE)
+    res <- try(
+      if(time)
+        mean(microbenchmark::microbenchmark(fun(...), times=time)[['time']])/1e9
+      else fun(...), silent=TRUE
+    )
     if(inherits(res, 'try-error')) res <- 'error'
     if(strip.names) unname(res) else res
   }
