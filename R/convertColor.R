@@ -156,7 +156,7 @@ colorspaces <-
 
              L <- Lab[,1L]
              yr <- .ifelse(L < kappa*epsilon,
-                           L/kappa, pow3((L+16)/116)
+                           L/kappa, pow3((L+16)/116))
              fy <- (.ifelse(yr <= epsilon, kappa*yr, L)+16)/116
              fx <- Lab[,2L]/500+fy
              fz <- fy-Lab[,3L]/200
