@@ -2,7 +2,7 @@
 knitr::opts_chunk$set(error=TRUE)
 options(digits=3)
 ## See tests/convertColor.R for details
-library(grDevices0)
+suppressPackageStartupMessages(library(grDevices0))
 ## library(grDevices)   ## if you have r-devel > r75340
 ```
 
@@ -41,12 +41,17 @@ not seem worth preserving.
 
 Almost all color space conversions currently fail with zero row inputs, except
 those in which `to` is set to `XYZ`.  For these the  return is a zero length
-vector.  With the patch all input/output color space combinations work and
-return zero-row matrices:
+vector.
 
 ```{r}
 convertColor(matrix(numeric(), ncol=3), 'Luv', 'XYZ')
 convertColor(matrix(numeric(), ncol=3), 'Luv', 'Lab')
+```
+
+With the patch all input/output color space combinations work and
+return zero-row matrices:
+
+```{r}
 str(grDevices1::convertColor(matrix(numeric(), ncol=3), 'Luv', 'XYZ'))
 str(grDevices1::convertColor(matrix(numeric(), ncol=3), 'Luv', 'Lab'))
 ```
