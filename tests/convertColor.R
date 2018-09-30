@@ -27,6 +27,8 @@ library(grDevices0)
 ## * interpolate_space: given an array containing the bounds of a color space,
 ##   interpolate (8000 by default) colors within those bounds and also some
 ##   outside those bounds.
+## * matrix.identical/equal: run `identical` or `all.equal` element-wise on
+##   list-matrices.
 
 if(!require(microbenchmark)) warning("Timed tests require microbench ark")
 source('tests/utils.R')
@@ -61,7 +63,7 @@ str(space.input)
 
 ## All colors
 
-cc0.0 <- color_to_color(space.input, fun=grDevices0::convertColor)
+cc0.0 <- color_to_color(space.input, fun=convertColor)
 cc1.0 <- color_to_color(space.input, fun=grDevices1::convertColor)
 cc2.0 <- color_to_color(space.input, fun=grDevices2::convertColor)
 
@@ -72,7 +74,7 @@ all.equal(cc0.0, cc2.0)   # TRUE
 
 space.one <- as.list(as.data.frame(apply(ranges, 3, colMeans)))
 
-cc0.1 <- color_to_color(space.one, fun=grDevices0::convertColor)
+cc0.1 <- color_to_color(space.one, fun=convertColor)
 cc1.1 <- color_to_color(space.one, fun=grDevices1::convertColor)
 cc2.1 <- color_to_color(space.one, fun=grDevices2::convertColor)
 
@@ -86,7 +88,7 @@ all.equal(cc1.1, cc2.1)   # TRUE
 space.zero.row <- sapply(
   space.input, function(x) matrix(numeric(), ncol=3), simplify=FALSE
 )
-cc0.2 <- color_to_color(space.zero.row, fun=grDevices0::convertColor)
+cc0.2 <- color_to_color(space.zero.row, fun=convertColor)
 cc1.2 <- color_to_color(space.zero.row, fun=grDevices1::convertColor)
 cc2.2 <- color_to_color(space.zero.row, fun=grDevices2::convertColor)
 
@@ -98,7 +100,7 @@ matrix.identical(cc1.2, cc2.2)
 ## 0 length, All errors on both sides
 
 space.zero <- sapply(space.input, function(x) numeric(), simplify=FALSE)
-cc0.3 <- color_to_color(space.zero, fun=grDevices0::convertColor)
+cc0.3 <- color_to_color(space.zero, fun=convertColor)
 cc1.3 <- color_to_color(space.zero, fun=grDevices1::convertColor)
 cc2.3 <- color_to_color(space.zero, fun=grDevices1::convertColor)
 
@@ -108,7 +110,7 @@ all.equal(cc0.3, cc2.3)
 ## bad length (not same warnings, but same results)
 
 space.bad.len <- sapply(space.input, function(x) numeric(4), simplify=FALSE)
-cc0.4 <- color_to_color(space.bad.len, fun=grDevices0::convertColor)
+cc0.4 <- color_to_color(space.bad.len, fun=convertColor)
 cc1.4 <- color_to_color(space.bad.len, fun=grDevices1::convertColor)
 cc2.4 <- color_to_color(space.bad.len, fun=grDevices2::convertColor)
 
@@ -118,7 +120,7 @@ all.equal(cc0.4, cc2.4)
 ## wrong type of input, errors all around for both methods
 
 space.bad.len <- sapply(space.input, function(x) character(3), simplify=FALSE)
-cc0.5 <- color_to_color(space.bad.len, fun=grDevices0::convertColor)
+cc0.5 <- color_to_color(space.bad.len, fun=convertColor)
 cc1.5 <- color_to_color(space.bad.len, fun=grDevices1::convertColor)
 cc2.5 <- color_to_color(space.bad.len, fun=grDevices2::convertColor)
 
@@ -130,17 +132,17 @@ all.equal(cc0.5, cc2.5)
 ## all.equal with level-1.
 
 space.na <- interpolate_space(ranges, steps=2, na=TRUE, expand=numeric())
-cc0.6 <- color_to_color(space.na, fun=grDevices0::convertColor)
+cc0.6 <- color_to_color(space.na, fun=convertColor)
 cc1.6 <- color_to_color(space.na, fun=grDevices1::convertColor)
 cc2.6 <- color_to_color(space.na, fun=grDevices2::convertColor)
 
 matrix.identical(cc0.6, cc1.6) | cc0.6 == 'error'
-matrix.identical(cc1.6, cc2.6)
+matrix.equal(cc1.6, cc2.6) # small num difference makes them non-identical
 
 ## NaN, same as NA results for level-0, level-1
 
 space.nan <- interpolate_space(ranges, steps=2, nan=TRUE, expand=numeric())
-cc0.7 <- color_to_color(space.nan, fun=grDevices0::convertColor)
+cc0.7 <- color_to_color(space.nan, fun=convertColor)
 cc1.7 <- color_to_color(space.nan, fun=grDevices1::convertColor)
 cc2.7 <- color_to_color(space.nan, fun=grDevices2::convertColor)
 
@@ -153,33 +155,35 @@ matrix.equal(cc1.7, cc2.7)
 ## works for level-1.  For those were both work, results are all equal.
 
 space.inf <- interpolate_space(ranges, steps=2, inf=TRUE, expand=numeric())
-cc0.8 <- color_to_color(space.inf, fun=grDevices0::convertColor)
+cc0.8 <- color_to_color(space.inf, fun=convertColor)
 cc1.8 <- color_to_color(space.inf, fun=grDevices1::convertColor)
+cc2.8 <- color_to_color(space.inf, fun=grDevices2::convertColor)
 
-all.equal(cc0.8, cc1.8)
 matrix.identical(cc0.8, cc1.8) | cc0.8 == 'error'
+matrix.equal(cc1.8, cc2.8)
 
 # - Other Inputs ---------------------------------------------------------------
 
 ## These should not be affected by our changes, but checking nothing is broken
 
 all.equal(
-  grDevices0::convertColor(c(30, 20, -20), 'Lab', 'Luv', 'D65', 'E'),
+  convertColor(c(30, 20, -20), 'Lab', 'Luv', 'D65', 'E'),
   grDevices2::convertColor(c(30, 20, -20), 'Lab', 'Luv', 'D65', 'E')
 )
 identical(
-  grDevices0::convertColor(c(.5, 1, 1), 'XYZ', 'sRGB', clip=NA),
+  convertColor(c(.5, 1, 1), 'XYZ', 'sRGB', clip=NA),
   grDevices2::convertColor(c(.5, 1, 1), 'XYZ', 'sRGB', clip=NA)
 )
 identical(
-  grDevices0::convertColor(c(.5, 1, 1), 'XYZ', 'sRGB', clip=TRUE),
+  convertColor(c(.5, 1, 1), 'XYZ', 'sRGB', clip=TRUE),
   grDevices2::convertColor(c(.5, 1, 1), 'XYZ', 'sRGB', clip=TRUE)
 )
 
 # - Performance ----------------------------------------------------------------
 
-stop('performance')
-cc0t <- color_to_color(space.input, fun=grDevices0::convertColor, time=5)
+stop('performance section best run interactively')
+
+cc0t <- color_to_color(space.input, fun=convertColor, time=5)
 cc1t <- color_to_color(space.input, fun=grDevices1::convertColor, time=5)
 cc2t <- color_to_color(space.input, fun=grDevices2::convertColor, time=5)
 
@@ -187,7 +191,7 @@ cc0t/cc1t  # level-1 performance improvement
 cc0t/cc2t  # level-2 performance improvement
 
 clrs <-  c("#FFFFD4", "#FED98E", "#FE9929", "#D95F0E", "#993404")
-ramp0 <- grDevices0::colorRamp(clrs, space='Lab')
+ramp0 <- colorRamp(clrs, space='Lab')
 ramp2 <- grDevices2::colorRamp(clrs, space='Lab')
 
 vals <- (0:1e4) / 1e4
@@ -197,7 +201,7 @@ microbenchmark::microbenchmark(ramp0(vals), ramp2(vals), times=5)
 
 ## Just to confirm the color coverage is reasonable.
 
-stop('visualize')
+stop('visualize section best run interactively')
 
 if(require(scales)) {
   rgb.mx <- cc2.0[['CIE RGB', 'sRGB']]
