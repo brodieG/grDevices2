@@ -190,6 +190,19 @@ cc2t <- color_to_color(space.input, fun=grDevices2::convertColor, time=5)
 cc0t/cc1t  # level-1 performance improvement
 cc0t/cc2t  # level-2 performance improvement
 
+## try smaller matrices to make sure performance is not degraded.
+
+space.ten <- lapply(space.input, function(x) x[seq(1, nrow(x), length.out=10),])
+
+cc0t <- color_to_color(space.ten, fun=convertColor, time=100)
+cc1t <- color_to_color(space.ten, fun=grDevices1::convertColor, time=100)
+cc2t <- color_to_color(space.ten, fun=grDevices2::convertColor, time=100)
+
+cc0t/cc1t  # level-1 performance improvement
+cc0t/cc2t  # level-2 performance improvement
+
+## colorRamp
+
 clrs <-  c("#FFFFD4", "#FED98E", "#FE9929", "#D95F0E", "#993404")
 ramp0 <- colorRamp(clrs, space='Lab')
 ramp2 <- grDevices2::colorRamp(clrs, space='Lab')
