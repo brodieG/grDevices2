@@ -1,9 +1,19 @@
+## For testing simplicity we made a copy of `grDevices` that contains just the
+## color conversion functions and called it `grDevices0`.  If you have a recent
+## version of r-devel (>= r75340) you can just use `grDevices` directly.
+
+library(grDevices0)
+## library(grDevices)   ## if you have r-devel > r75340
+
+## The minimal changes 'level-1' patch is `grDevices1`, and the 'level-2' patch
+## is `grDevices2`.  To replicate these tests you can checkout the 'level-1'
+## branch and the 'level-2' branch to different directories and install each of
+## those as you would a source package.  See github readme for instructions:
+##
+## https://github.com/brodieG/grDevices2
+
 # - Sample Input Spaces --------------------------------------------------------
 
-## For testing simplicity we made a copy of `grDevices` that contains just the
-## color conversion functions and called it `grDevices0`.  The minimal changes
-## 'level-1' patch is `grDevices1`, and the 'level-2' patch is `grDevices2`.
-##
 ## Generate 8000 colors sampled evenly within (and outside) the typical ranges
 ## of each color space.  We use helper functions from `tests/utils.R` to
 ## generate samplings of the color spaces and applying the conversion functions
@@ -13,11 +23,12 @@
 ## * color_to_color: apply a function to every permutation of from/to color
 ##   spaces contained in the color space list input.  Returns a list matrix with
 ##   the result of the color conversion.  Requires `microbenchmark` for timing
-##   version.
+##   version.  Column names are dropped.
 ## * interpolate_space: given an array containing the bounds of a color space,
 ##   interpolate (8000 by default) colors within those bounds and also some
 ##   outside those bounds.
 
+if(!require(microbenchmark)) warning("Timed tests require microbench ark")
 source('tests/utils.R')
 
 ranges.raw <- c(
@@ -30,18 +41,21 @@ ranges.raw <- c(
 )
 spaces <- c('Apple RGB', 'sRGB', 'CIE RGB', 'XYZ', 'Lab', 'Luv')
 
+## ranges is an array containing the min and max values for each dimension of
+## each supported color space
+
 ranges <- array(
   ranges.raw, dim=c(2, 3, length(ranges.raw) / (2 * 3)),
   dimnames=list(range=c('lo', 'hi'), NULL, space=spaces)
 )
-space <- spaces
-ranges.sub <- ranges[,,match(space, space)]
+ranges
 
-# For each input space, generate permutation of values in range, outside of
-# range, along with NA, NaN, Inf, -Inf cases.
+# For each input space, generate permutation of values in range and outside of
+# In this case we're generating 8000 permutations (16 + 4) ^ 3, where we sample
+# 16 values within range, and 4 outside.
 
-space.input <- interpolate_space(ranges.sub, steps=16)
-stop('test prep done')
+space.input <- interpolate_space(ranges, steps=16)
+str(space.input)
 
 # - Compare Convert Color ------------------------------------------------------
 
@@ -49,10 +63,10 @@ stop('test prep done')
 
 cc0.0 <- color_to_color(space.input, fun=grDevices0::convertColor)
 cc1.0 <- color_to_color(space.input, fun=grDevices1::convertColor)
-cc2.0 <- color_to_color(space.input, fun=grDevices1::convertColor)
+cc2.0 <- color_to_color(space.input, fun=grDevices2::convertColor)
 
-all.equal(cc0.0, cc1.0)
-all.equal(cc0.0, cc2.0)
+all.equal(cc0.0, cc1.0)   # TRUE
+all.equal(cc0.0, cc2.0)   # TRUE
 
 ## Single color, pick midpoint of ranges
 
@@ -62,10 +76,12 @@ cc0.1 <- color_to_color(space.one, fun=grDevices0::convertColor)
 cc1.1 <- color_to_color(space.one, fun=grDevices1::convertColor)
 cc2.1 <- color_to_color(space.one, fun=grDevices2::convertColor)
 
-all.equal(cc0.1, cc1.1)
-all.equal(cc1.1, cc2.1)
+all.equal(cc0.1, cc1.1)   # TRUE
+all.equal(cc1.1, cc2.1)   # TRUE
 
-## 0 Row
+## 0 Row input, fails in all cases originally except when output is XYZ, in
+## which case result is 0 length numeric.  'level-1' and 'level-2' return zero
+## row matrices always.
 
 space.zero.row <- sapply(
   space.input, function(x) matrix(numeric(), ncol=3), simplify=FALSE
@@ -73,6 +89,11 @@ space.zero.row <- sapply(
 cc0.2 <- color_to_color(space.zero.row, fun=grDevices0::convertColor)
 cc1.2 <- color_to_color(space.zero.row, fun=grDevices1::convertColor)
 cc2.2 <- color_to_color(space.zero.row, fun=grDevices2::convertColor)
+
+matrix.equal(cc0.2, cc1.2)
+cc0.2[['sRGB', 'XYZ']]    # 0 vector
+cc1.2[['sRGB', 'XYZ']]    # 0 row matrix
+matrix.identical(cc1.2, cc2.2)
 
 ## 0 length, All errors on both sides
 
@@ -105,32 +126,33 @@ all.equal(cc0.5, cc1.5)
 all.equal(cc0.5, cc2.5)
 
 ## NAs, level-0 fails for any thing from "Lab" or "Luv", or to "Luv", whereas
-## level-0 works for all.  For the stuff that works for level-0, those are
+## level-1 works for all.  For the stuff that works for level-0, those are
 ## all.equal with level-1.
 
-space.na <- interpolate_space(ranges.sub, steps=2, na=TRUE, expand=numeric())
+space.na <- interpolate_space(ranges, steps=2, na=TRUE, expand=numeric())
 cc0.6 <- color_to_color(space.na, fun=grDevices0::convertColor)
 cc1.6 <- color_to_color(space.na, fun=grDevices1::convertColor)
 cc2.6 <- color_to_color(space.na, fun=grDevices2::convertColor)
 
 matrix.identical(cc0.6, cc1.6) | cc0.6 == 'error'
-matrix.identical(cc0.6, cc2.6) | cc0.6 == 'error'
+matrix.identical(cc1.6, cc2.6)
 
 ## NaN, same as NA results for level-0, level-1
 
-space.nan <- interpolate_space(ranges.sub, steps=2, nan=TRUE, expand=numeric())
+space.nan <- interpolate_space(ranges, steps=2, nan=TRUE, expand=numeric())
 cc0.7 <- color_to_color(space.nan, fun=grDevices0::convertColor)
 cc1.7 <- color_to_color(space.nan, fun=grDevices1::convertColor)
 cc2.7 <- color_to_color(space.nan, fun=grDevices2::convertColor)
 
 matrix.identical(cc0.7, cc1.7) | cc0.7 == 'error'
-matrix.identical(cc0.7, cc2.7) | cc0.7 == 'error'
-matrix.equal(cc0.7, cc2.7) | cc0.7 == 'error'  # level-2 preserves NaNs
+# level-2 preserves NaNs instead of turning them to NAs.
+matrix.identical(cc1.7, cc2.7)
+matrix.equal(cc1.7, cc2.7)
 
 ## Inf, fails for calculations involving from "Lab" or to "Luv" for level-0, but
 ## works for level-1.  For those were both work, results are all equal.
 
-space.inf <- interpolate_space(ranges.sub, steps=2, inf=TRUE, expand=numeric())
+space.inf <- interpolate_space(ranges, steps=2, inf=TRUE, expand=numeric())
 cc0.8 <- color_to_color(space.inf, fun=grDevices0::convertColor)
 cc1.8 <- color_to_color(space.inf, fun=grDevices1::convertColor)
 
@@ -156,9 +178,13 @@ identical(
 
 # - Performance ----------------------------------------------------------------
 
+stop('performance')
 cc0t <- color_to_color(space.input, fun=grDevices0::convertColor, time=5)
 cc1t <- color_to_color(space.input, fun=grDevices1::convertColor, time=5)
 cc2t <- color_to_color(space.input, fun=grDevices2::convertColor, time=5)
+
+cc0t/cc1t  # level-1 performance improvement
+cc0t/cc2t  # level-2 performance improvement
 
 clrs <-  c("#FFFFD4", "#FED98E", "#FE9929", "#D95F0E", "#993404")
 ramp0 <- grDevices0::colorRamp(clrs, space='Lab')

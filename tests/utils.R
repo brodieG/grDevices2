@@ -63,23 +63,35 @@ interpolate_space <- function(
   names(res) <- dimnames(ranges)[[3]]
   res
 }
-
+## Apply all.equal pairwise to corresponding elements of two matrices
+##
+## Helpful when trying to compare individual components of list matrices.
 
 matrix.equal <- function(target, current) {
   stopifnot(
     !is.null(dim(target)), identical(dim(target), dim(current))
   )
-  res <- matrix(logical(length(target)), nrow(target), nrow(current))
+  res <- matrix(
+    logical(length(target)), nrow(target), nrow(current),
+    dimnames=dimnames(target)
+  )
   for(i in seq_len(nrow(target)))
     for(j in seq_len(ncol(target)))
       res[i, j] <- isTRUE(all.equal(target[[i, j]], current[[i, j]]))
   res
 }
+## Apply identical pairwise to corresponding elements of two matrices
+##
+## Helpful when trying to compare individual components of list matrices.
+
 matrix.identical <- function(target, current) {
   stopifnot(
     !is.null(dim(target)), identical(dim(target), dim(current))
   )
-  res <- matrix(logical(length(target)), nrow(target), nrow(current))
+  res <- matrix(
+    logical(length(target)), nrow(target), nrow(current),
+    dimnames=dimnames(target)
+  )
   for(i in seq_len(nrow(target)))
     for(j in seq_len(ncol(target)))
       res[i, j] <- identical(target[[i, j]], current[[i, j]])
