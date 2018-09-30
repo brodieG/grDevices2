@@ -1,0 +1,80 @@
+```{r echo=FALSE}
+knitr::opts_chunk$set(error=TRUE)
+options(digits=3)
+## See tests/convertColor.R for details
+library(grDevices0)
+## library(grDevices)   ## if you have r-devel > r75340
+```
+
+# Summary of Known Behavior Changes
+
+This is a summary of the know behavior changes between
+`grDevices::convertColor@r75340` and that of the same function after applying
+either the level-1 (`grDevices1::`) or level-2 patch (`grDevices2::`).  Unless
+explicitly stated changes happen both with the level-1 and level-2 patches.
+
+## Column Names
+
+The current version of `grDevices::convertColor` produces seemingly odd column
+names.  For example, in this case one might expect both results to have the same
+column names:
+
+```{r}
+convertColor(c(50, -20, 20), 'Luv', 'Lab')
+convertColor(c(.34491, .50319, .37791), 'sRGB', 'Lab')
+```
+
+These seemingly odd names are likely an unintended consequence of `c` combining
+the names of inputs:
+
+```{r}
+c(L=50, a=-20, b=13)
+c(L=c(Y=50), a=c(X=-20), b=c(Y=13))
+```
+
+Internally we replace calls to `c` with `cbind`, and this "resolves" the issue.
+It would be possible to record the old names for each combination of inputs and
+reproduce them, but this requires contortion for the sake of behavior that does
+not seem worth preserving.
+
+## Zero Row Inputs
+
+Almost all color space conversions currently fail with zero row inputs, except
+those in which `to` is set to `XYZ`.  For these the  return is a zero length
+vector.  With the patch all input/output color space combinations work and
+return zero-row matrices:
+
+```{r}
+convertColor(matrix(numeric(), ncol=3), 'Luv', 'XYZ')
+convertColor(matrix(numeric(), ncol=3), 'Luv', 'Lab')
+str(grDevices1::convertColor(matrix(numeric(), ncol=3), 'Luv', 'XYZ'))
+str(grDevices1::convertColor(matrix(numeric(), ncol=3), 'Luv', 'Lab'))
+```
+
+Given that this is a bit of a corner case, and that the existing behavior is
+inconsistent across input/output color space combinations, it seems unnecessary
+to further complicate the patches to mimic the existing behavior.
+
+## NAs/NaNs/Inf in Inputs
+
+NA/NaN/Inf inputs currently cause errors for many of the input/output color
+space  combinations.  This is mostly because of expressions of the form
+`if(test) ...` fail when `test` is NA, as shown in this example:
+
+```{r}
+convertColor(c(NaN, 0.5, 0.5), 'sRGB', 'Lab')   # works
+convertColor(c(NaN, 0.5, 0.5), 'Lab', 'sRGB')   # doesn't
+```
+
+The level-1 patch uses `ifelse` which handles the NA values and propagates
+them. In this sense level-1 "works".  The level-2 patch replaces `ifelse` with
+the faster `.ifelse`, which works similarly but also preserves NaNs (i.e. does
+not coerce them to NAs):
+
+```{r}
+grDevices1::convertColor(c(50, NaN, 0.5), 'Lab', 'sRGB')
+grDevices2::convertColor(c(50, NaN, 0.5), 'Lab', 'sRGB')
+```
+
+Due to the existing inconsistency, there seems to be little harm in changing the
+behavior to make NAs propagate and allow the computation to complete.
