@@ -1,0 +1,423 @@
+
+R version 3.5.1 (2018-07-02) -- "Feather Spray"
+Copyright (C) 2018 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ## For testing simplicity we made a copy of `grDevices` that contains just the
+> ## color conversion functions and called it `grDevices0`.  If you have a recent
+> ## version of r-devel (>= r75340) you can just use `grDevices` directly.
+> 
+> library(grDevices0)
+> ## library(grDevices)   ## if you have r-devel > r75340
+> 
+> ## The minimal changes 'level-1' patch is `grDevices1`, and the 'level-2' patch
+> ## is `grDevices2`.  To replicate these tests you can checkout the 'level-1'
+> ## branch and the 'level-2' branch to different directories and install each of
+> ## those as you would a source package.  See github readme for instructions:
+> ##
+> ## https://github.com/brodieG/grDevices2
+> 
+> # - Sample Input Spaces --------------------------------------------------------
+> 
+> ## Generate 8000 colors sampled evenly within (and outside) the typical ranges
+> ## of each color space.  We use helper functions from `tests/utils.R` to
+> ## generate samplings of the color spaces and applying the conversion functions
+> ## to all permutations of input/output color spaces.
+> ##
+> ## utils.R defines:
+> ## * color_to_color: apply a function to every permutation of from/to color
+> ##   spaces contained in the color space list input.  Returns a list matrix with
+> ##   the result of the color conversion.  Requires `microbenchmark` for timing
+> ##   version.  Column names are dropped.
+> ## * interpolate_space: given an array containing the bounds of a color space,
+> ##   interpolate (8000 by default) colors within those bounds and also some
+> ##   outside those bounds.
+> ## * matrix.identical/equal: run `identical` or `all.equal` element-wise on
+> ##   list-matrices.
+> 
+> if(!require(microbenchmark)) warning("Timed tests require microbenchmark")
+> source('tests/utils.R')
+> 
+> ranges.raw <- c(
++   0,   1,   0,   1,   0,   1,  # rgb*/xyz
++   0,   1,   0,   1,   0,   1,  # rgb*/xyz
++   0,   1,   0,   1,   0,   1,  # rgb*/xyz
++   0,   1,   0,   1,   0,   1,  # rgb*/xyz
++   0, 100,-128, 128,-128, 128,  # Lab
++   0, 100,-180, 180,-180, 180   # Luv
++ )
+> spaces <- c('Apple RGB', 'sRGB', 'CIE RGB', 'XYZ', 'Lab', 'Luv')
+> 
+> ## ranges is an array containing the min and max values for each dimension of
+> ## each supported color space
+> 
+> ranges <- array(
++   ranges.raw, dim=c(2, 3, length(ranges.raw) / (2 * 3)),
++   dimnames=list(range=c('lo', 'hi'), NULL, space=spaces)
++ )
+> ranges
+, , space = Apple RGB
+
+     
+range [,1] [,2] [,3]
+   lo    0    0    0
+   hi    1    1    1
+
+, , space = sRGB
+
+     
+range [,1] [,2] [,3]
+   lo    0    0    0
+   hi    1    1    1
+
+, , space = CIE RGB
+
+     
+range [,1] [,2] [,3]
+   lo    0    0    0
+   hi    1    1    1
+
+, , space = XYZ
+
+     
+range [,1] [,2] [,3]
+   lo    0    0    0
+   hi    1    1    1
+
+, , space = Lab
+
+     
+range [,1] [,2] [,3]
+   lo    0 -128 -128
+   hi  100  128  128
+
+, , space = Luv
+
+     
+range [,1] [,2] [,3]
+   lo    0 -180 -180
+   hi  100  180  180
+
+> 
+> # For each input space, generate permutation of values in range and outside of
+> # In this case we're generating 8000 permutations (16 + 4) ^ 3, where we sample
+> # 16 values within range, and 4 outside.
+> 
+> space.input <- interpolate_space(ranges, steps=16)
+> str(space.input)
+List of 6
+ $ Apple RGB: num [1:8000, 1:3] 0 0.0667 0.1333 0.2 0.2667 ...
+  ..- attr(*, "dimnames")=List of 2
+  .. ..$ : NULL
+  .. ..$ : chr [1:3] "1" "2" "3"
+ $ sRGB     : num [1:8000, 1:3] 0 0.0667 0.1333 0.2 0.2667 ...
+  ..- attr(*, "dimnames")=List of 2
+  .. ..$ : NULL
+  .. ..$ : chr [1:3] "1" "2" "3"
+ $ CIE RGB  : num [1:8000, 1:3] 0 0.0667 0.1333 0.2 0.2667 ...
+  ..- attr(*, "dimnames")=List of 2
+  .. ..$ : NULL
+  .. ..$ : chr [1:3] "1" "2" "3"
+ $ XYZ      : num [1:8000, 1:3] 0 0.0667 0.1333 0.2 0.2667 ...
+  ..- attr(*, "dimnames")=List of 2
+  .. ..$ : NULL
+  .. ..$ : chr [1:3] "1" "2" "3"
+ $ Lab      : num [1:8000, 1:3] 0 6.67 13.33 20 26.67 ...
+  ..- attr(*, "dimnames")=List of 2
+  .. ..$ : NULL
+  .. ..$ : chr [1:3] "1" "2" "3"
+ $ Luv      : num [1:8000, 1:3] 0 6.67 13.33 20 26.67 ...
+  ..- attr(*, "dimnames")=List of 2
+  .. ..$ : NULL
+  .. ..$ : chr [1:3] "1" "2" "3"
+> 
+> # - Compare Convert Color ------------------------------------------------------
+> 
+> ## All colors
+> 
+> cc0.0 <- color_to_color(space.input, fun=convertColor)
+> cc1.0 <- color_to_color(space.input, fun=grDevices1::convertColor)
+> cc2.0 <- color_to_color(space.input, fun=grDevices2::convertColor)
+> 
+> ## color_to_color produces list matrices with the results of the color
+> ## conversions.  Here we show what it looks like, and how to access elements.
+> ## Note that color_to_color drops column names by default as these are changed
+> ## by the patches.
+> 
+> cc0.0
+           to
+from        Apple RGB     sRGB          CIE RGB       XYZ          
+  Apple RGB NULL          Numeric,24000 Numeric,24000 Numeric,24000
+  sRGB      Numeric,24000 NULL          Numeric,24000 Numeric,24000
+  CIE RGB   Numeric,24000 Numeric,24000 NULL          Numeric,24000
+  XYZ       Numeric,24000 Numeric,24000 Numeric,24000 NULL         
+  Lab       Numeric,24000 Numeric,24000 Numeric,24000 Numeric,24000
+  Luv       Numeric,24000 Numeric,24000 Numeric,24000 Numeric,24000
+           to
+from        Lab           Luv          
+  Apple RGB Numeric,24000 Numeric,24000
+  sRGB      Numeric,24000 Numeric,24000
+  CIE RGB   Numeric,24000 Numeric,24000
+  XYZ       Numeric,24000 Numeric,24000
+  Lab       NULL          Numeric,24000
+  Luv       Numeric,24000 NULL         
+> head(cc0.0[['sRGB', 'Lab']])
+          [,1]      [,2]      [,3]
+[1,]  0.000000  0.000000  0.000000
+[2,]  1.088229  4.852944  1.719106
+[3,]  3.105514 13.849009  4.905869
+[4,]  6.426946 25.190288 10.152830
+[5,] 10.866361 30.936318 17.114494
+[6,] 15.235447 35.967273 23.721210
+> 
+> ## Confirm all.equal
+> 
+> all.equal(cc0.0, cc1.0)   # TRUE
+[1] TRUE
+> all.equal(cc0.0, cc2.0)   # TRUE
+[1] TRUE
+> 
+> ## Single color, pick midpoint of ranges
+> 
+> space.one <- as.list(as.data.frame(apply(ranges, 3, colMeans)))
+> 
+> cc0.1 <- color_to_color(space.one, fun=convertColor)
+> cc1.1 <- color_to_color(space.one, fun=grDevices1::convertColor)
+> cc2.1 <- color_to_color(space.one, fun=grDevices2::convertColor)
+> 
+> all.equal(cc0.1, cc1.1)   # TRUE
+[1] TRUE
+> all.equal(cc1.1, cc2.1)   # TRUE
+[1] TRUE
+> 
+> ## 0 Row input, fails in all cases originally except when output is XYZ, in
+> ## which case result is 0 length numeric.  'level-1' and 'level-2' return zero
+> ## row matrices always.
+> 
+> space.zero.row <- sapply(
++   space.input, function(x) matrix(numeric(), ncol=3), simplify=FALSE
++ )
+> cc0.2 <- color_to_color(space.zero.row, fun=convertColor)
+> cc1.2 <- color_to_color(space.zero.row, fun=grDevices1::convertColor)
+> cc2.2 <- color_to_color(space.zero.row, fun=grDevices2::convertColor)
+> 
+> ## matrix.equal make it easy to see which elements are not all.equal
+> 
+> matrix.equal(cc0.2, cc1.2)
+           to
+from        Apple RGB  sRGB CIE RGB   XYZ   Lab   Luv
+  Apple RGB      TRUE FALSE   FALSE FALSE FALSE FALSE
+  sRGB          FALSE  TRUE   FALSE FALSE FALSE FALSE
+  CIE RGB       FALSE FALSE    TRUE FALSE FALSE FALSE
+  XYZ           FALSE FALSE   FALSE  TRUE FALSE FALSE
+  Lab           FALSE FALSE   FALSE FALSE  TRUE FALSE
+  Luv           FALSE FALSE   FALSE FALSE FALSE  TRUE
+> 
+> cc0.2[['sRGB', 'XYZ']]    # 0 vector
+numeric(0)
+> cc1.2[['sRGB', 'XYZ']]    # 0 row matrix
+     [,1] [,2] [,3]
+> 
+> ## In most cases level-2 patch is identical to level-1
+> 
+> matrix.identical(cc1.2, cc2.2)
+           to
+from        Apple RGB sRGB CIE RGB  XYZ  Lab  Luv
+  Apple RGB      TRUE TRUE    TRUE TRUE TRUE TRUE
+  sRGB           TRUE TRUE    TRUE TRUE TRUE TRUE
+  CIE RGB        TRUE TRUE    TRUE TRUE TRUE TRUE
+  XYZ            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Lab            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Luv            TRUE TRUE    TRUE TRUE TRUE TRUE
+> 
+> ## 0 length, All errors on both sides
+> 
+> space.zero <- sapply(space.input, function(x) numeric(), simplify=FALSE)
+> cc0.3 <- color_to_color(space.zero, fun=convertColor)
+> cc1.3 <- color_to_color(space.zero, fun=grDevices1::convertColor)
+> cc2.3 <- color_to_color(space.zero, fun=grDevices1::convertColor)
+> 
+> all.equal(cc0.3, cc1.3)
+[1] TRUE
+> all.equal(cc0.3, cc2.3)
+[1] TRUE
+> 
+> ## bad length (not same warnings, but same results)
+> 
+> space.bad.len <- sapply(space.input, function(x) numeric(4), simplify=FALSE)
+> cc0.4 <- color_to_color(space.bad.len, fun=convertColor)
+> cc1.4 <- color_to_color(space.bad.len, fun=grDevices1::convertColor)
+> cc2.4 <- color_to_color(space.bad.len, fun=grDevices2::convertColor)
+> 
+> all.equal(cc0.4, cc1.4)
+[1] TRUE
+> all.equal(cc0.4, cc2.4)
+[1] TRUE
+> 
+> ## wrong type of input, errors all around for both methods
+> 
+> space.bad.len <- sapply(space.input, function(x) character(3), simplify=FALSE)
+> cc0.5 <- color_to_color(space.bad.len, fun=convertColor)
+> cc1.5 <- color_to_color(space.bad.len, fun=grDevices1::convertColor)
+> cc2.5 <- color_to_color(space.bad.len, fun=grDevices2::convertColor)
+> 
+> all.equal(cc0.5, cc1.5)
+[1] TRUE
+> all.equal(cc0.5, cc2.5)
+[1] TRUE
+> 
+> ## NAs, level-0 fails for any thing from "Lab" or "Luv", or to "Luv", whereas
+> ## level-1 works for all.  For the stuff that works for level-0, those are
+> ## all.equal with level-1.
+> 
+> space.na <- interpolate_space(ranges, steps=2, na=TRUE, expand=numeric())
+> cc0.6 <- color_to_color(space.na, fun=convertColor)
+> cc1.6 <- color_to_color(space.na, fun=grDevices1::convertColor)
+> cc2.6 <- color_to_color(space.na, fun=grDevices2::convertColor)
+> 
+> cc0.6
+           to
+from        Apple RGB  sRGB       CIE RGB    XYZ        Lab        Luv    
+  Apple RGB NULL       Numeric,81 Numeric,81 Numeric,81 Numeric,81 "error"
+  sRGB      Numeric,81 NULL       Numeric,81 Numeric,81 Numeric,81 "error"
+  CIE RGB   Numeric,81 Numeric,81 NULL       Numeric,81 Numeric,81 "error"
+  XYZ       Numeric,81 Numeric,81 Numeric,81 NULL       Numeric,81 "error"
+  Lab       "error"    "error"    "error"    "error"    NULL       "error"
+  Luv       "error"    "error"    "error"    "error"    "error"    NULL   
+> 
+> matrix.identical(cc0.6, cc1.6) | cc0.6 == 'error'
+           to
+from        Apple RGB sRGB CIE RGB  XYZ  Lab  Luv
+  Apple RGB      TRUE TRUE    TRUE TRUE TRUE TRUE
+  sRGB           TRUE TRUE    TRUE TRUE TRUE TRUE
+  CIE RGB        TRUE TRUE    TRUE TRUE TRUE TRUE
+  XYZ            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Lab            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Luv            TRUE TRUE    TRUE TRUE TRUE TRUE
+> matrix.equal(cc1.6, cc2.6) # small num difference makes these non-identical
+           to
+from        Apple RGB sRGB CIE RGB  XYZ  Lab  Luv
+  Apple RGB      TRUE TRUE    TRUE TRUE TRUE TRUE
+  sRGB           TRUE TRUE    TRUE TRUE TRUE TRUE
+  CIE RGB        TRUE TRUE    TRUE TRUE TRUE TRUE
+  XYZ            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Lab            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Luv            TRUE TRUE    TRUE TRUE TRUE TRUE
+> 
+> ## NaN, same as NA results for level-0, level-1
+> 
+> space.nan <- interpolate_space(ranges, steps=2, nan=TRUE, expand=numeric())
+> cc0.7 <- color_to_color(space.nan, fun=convertColor)
+> cc1.7 <- color_to_color(space.nan, fun=grDevices1::convertColor)
+> cc2.7 <- color_to_color(space.nan, fun=grDevices2::convertColor)
+> 
+> matrix.identical(cc0.7, cc1.7) | cc0.7 == 'error'
+           to
+from        Apple RGB sRGB CIE RGB  XYZ  Lab  Luv
+  Apple RGB      TRUE TRUE    TRUE TRUE TRUE TRUE
+  sRGB           TRUE TRUE    TRUE TRUE TRUE TRUE
+  CIE RGB        TRUE TRUE    TRUE TRUE TRUE TRUE
+  XYZ            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Lab            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Luv            TRUE TRUE    TRUE TRUE TRUE TRUE
+> # level-2 preserves NaNs instead of turning them to NAs.
+> matrix.identical(cc1.7, cc2.7)
+           to
+from        Apple RGB  sRGB CIE RGB   XYZ   Lab   Luv
+  Apple RGB      TRUE FALSE   FALSE FALSE FALSE FALSE
+  sRGB          FALSE  TRUE   FALSE FALSE FALSE FALSE
+  CIE RGB       FALSE FALSE    TRUE FALSE FALSE FALSE
+  XYZ           FALSE FALSE   FALSE  TRUE FALSE FALSE
+  Lab           FALSE FALSE   FALSE FALSE  TRUE FALSE
+  Luv           FALSE FALSE   FALSE FALSE FALSE  TRUE
+> matrix.equal(cc1.7, cc2.7)
+           to
+from        Apple RGB sRGB CIE RGB  XYZ  Lab  Luv
+  Apple RGB      TRUE TRUE    TRUE TRUE TRUE TRUE
+  sRGB           TRUE TRUE    TRUE TRUE TRUE TRUE
+  CIE RGB        TRUE TRUE    TRUE TRUE TRUE TRUE
+  XYZ            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Lab            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Luv            TRUE TRUE    TRUE TRUE TRUE TRUE
+> 
+> head(cc1.7[['sRGB', 'Lab']])
+         [,1]      [,2]     [,3]
+[1,]  0.00000   0.00000  0.00000
+[2,] 53.48418  80.01027 67.38407
+[3,]       NA        NA       NA
+[4,] 87.63799 -86.44767 83.00071
+[5,] 97.14950 -21.36677 94.42044
+[6,]       NA        NA       NA
+> head(cc2.7[['sRGB', 'Lab']])
+         [,1]      [,2]     [,3]
+[1,]  0.00000   0.00000  0.00000
+[2,] 53.48418  80.01027 67.38407
+[3,]      NaN       NaN      NaN
+[4,] 87.63799 -86.44767 83.00071
+[5,] 97.14950 -21.36677 94.42044
+[6,]      NaN       NaN      NaN
+> 
+> ## Inf, fails for calculations involving from "Lab" or to "Luv" for level-0, but
+> ## works for level-1.  For those were both work, results are all equal.
+> 
+> space.inf <- interpolate_space(ranges, steps=2, inf=TRUE, expand=numeric())
+> cc0.8 <- color_to_color(space.inf, fun=convertColor)
+> cc1.8 <- color_to_color(space.inf, fun=grDevices1::convertColor)
+> cc2.8 <- color_to_color(space.inf, fun=grDevices2::convertColor)
+> 
+> matrix.identical(cc0.8, cc1.8) | cc0.8 == 'error'
+           to
+from        Apple RGB sRGB CIE RGB  XYZ  Lab  Luv
+  Apple RGB      TRUE TRUE    TRUE TRUE TRUE TRUE
+  sRGB           TRUE TRUE    TRUE TRUE TRUE TRUE
+  CIE RGB        TRUE TRUE    TRUE TRUE TRUE TRUE
+  XYZ            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Lab            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Luv            TRUE TRUE    TRUE TRUE TRUE TRUE
+> matrix.equal(cc1.8, cc2.8)
+           to
+from        Apple RGB sRGB CIE RGB  XYZ  Lab  Luv
+  Apple RGB      TRUE TRUE    TRUE TRUE TRUE TRUE
+  sRGB           TRUE TRUE    TRUE TRUE TRUE TRUE
+  CIE RGB        TRUE TRUE    TRUE TRUE TRUE TRUE
+  XYZ            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Lab            TRUE TRUE    TRUE TRUE TRUE TRUE
+  Luv            TRUE TRUE    TRUE TRUE TRUE TRUE
+> 
+> # - Other Inputs ---------------------------------------------------------------
+> 
+> ## These should not be affected by our changes, but checking nothing is broken
+> 
+> all.equal(
++   convertColor(c(30, 20, -20), 'Lab', 'Luv', 'D65', 'E'),
++   grDevices2::convertColor(c(30, 20, -20), 'Lab', 'Luv', 'D65', 'E')
++ )
+[1] TRUE
+> identical(
++   convertColor(c(.5, 1, 1), 'XYZ', 'sRGB', clip=NA),
++   grDevices2::convertColor(c(.5, 1, 1), 'XYZ', 'sRGB', clip=NA)
++ )
+[1] TRUE
+> identical(
++   convertColor(c(.5, 1, 1), 'XYZ', 'sRGB', clip=TRUE),
++   grDevices2::convertColor(c(.5, 1, 1), 'XYZ', 'sRGB', clip=TRUE)
++ )
+[1] TRUE
+> 
+> # - Performance ----------------------------------------------------------------
+> 
+> stop('performance section best run interactively')
