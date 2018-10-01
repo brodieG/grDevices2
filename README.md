@@ -28,5 +28,5 @@ Then you can run tests with (note these are not intended for running with R CMD
 check, I just put the tests in tests):
 
 ```
-source(tests/convertColor.R, echo=TRUE)
+source('tests/convertColor.R', echo=TRUE)
 ```

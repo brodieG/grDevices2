@@ -30,7 +30,7 @@ library(grDevices0)
 ## * matrix.identical/equal: run `identical` or `all.equal` element-wise on
 ##   list-matrices.
 
-if(!require(microbenchmark)) warning("Timed tests require microbench ark")
+if(!require(microbenchmark)) warning("Timed tests require microbenchmark")
 source('tests/utils.R')
 
 ranges.raw <- c(
@@ -67,6 +67,16 @@ cc0.0 <- color_to_color(space.input, fun=convertColor)
 cc1.0 <- color_to_color(space.input, fun=grDevices1::convertColor)
 cc2.0 <- color_to_color(space.input, fun=grDevices2::convertColor)
 
+## color_to_color produces list matrices with the results of the color
+## conversions.  Here we show what it looks like, and how to access elements.
+## Note that color_to_color drops column names by default as these are changed
+## by the patches.
+
+cc0.0
+head(cc0.0[['sRGB', 'Lab']])
+
+## Confirm all.equal
+
 all.equal(cc0.0, cc1.0)   # TRUE
 all.equal(cc0.0, cc2.0)   # TRUE
 
@@ -92,9 +102,15 @@ cc0.2 <- color_to_color(space.zero.row, fun=convertColor)
 cc1.2 <- color_to_color(space.zero.row, fun=grDevices1::convertColor)
 cc2.2 <- color_to_color(space.zero.row, fun=grDevices2::convertColor)
 
+## matrix.equal make it easy to see which elements are not all.equal
+
 matrix.equal(cc0.2, cc1.2)
+
 cc0.2[['sRGB', 'XYZ']]    # 0 vector
 cc1.2[['sRGB', 'XYZ']]    # 0 row matrix
+
+## In most cases level-2 patch is identical to level-1
+
 matrix.identical(cc1.2, cc2.2)
 
 ## 0 length, All errors on both sides
@@ -136,8 +152,10 @@ cc0.6 <- color_to_color(space.na, fun=convertColor)
 cc1.6 <- color_to_color(space.na, fun=grDevices1::convertColor)
 cc2.6 <- color_to_color(space.na, fun=grDevices2::convertColor)
 
+cc0.6
+
 matrix.identical(cc0.6, cc1.6) | cc0.6 == 'error'
-matrix.equal(cc1.6, cc2.6) # small num difference makes them non-identical
+matrix.equal(cc1.6, cc2.6) # small num difference makes these non-identical
 
 ## NaN, same as NA results for level-0, level-1
 
@@ -150,6 +168,9 @@ matrix.identical(cc0.7, cc1.7) | cc0.7 == 'error'
 # level-2 preserves NaNs instead of turning them to NAs.
 matrix.identical(cc1.7, cc2.7)
 matrix.equal(cc1.7, cc2.7)
+
+head(cc1.7[['sRGB', 'Lab']])
+head(cc2.7[['sRGB', 'Lab']])
 
 ## Inf, fails for calculations involving from "Lab" or to "Luv" for level-0, but
 ## works for level-1.  For those were both work, results are all equal.
@@ -189,6 +210,19 @@ cc2t <- color_to_color(space.input, fun=grDevices2::convertColor, time=5)
 
 cc0t/cc1t  # level-1 performance improvement
 cc0t/cc2t  # level-2 performance improvement
+
+## try smaller matrices to make sure performance is not degraded.
+
+space.ten <- lapply(space.input, function(x) x[seq(1, nrow(x), length.out=10),])
+
+cc0t.10 <- color_to_color(space.ten, fun=convertColor, time=100)
+cc1t.10 <- color_to_color(space.ten, fun=grDevices1::convertColor, time=100)
+cc2t.10 <- color_to_color(space.ten, fun=grDevices2::convertColor, time=100)
+
+cc0t.10/cc1t.10  # level-1 performance improvement
+cc0t.10/cc2t.10  # level-2 performance improvement
+
+## colorRamp
 
 clrs <-  c("#FFFFD4", "#FED98E", "#FE9929", "#D95F0E", "#993404")
 ramp0 <- colorRamp(clrs, space='Lab')

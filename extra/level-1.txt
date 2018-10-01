@@ -1,0 +1,161 @@
+Index: src/library/grDevices/R/convertColor.R
+===================================================================
+--- src/library/grDevices/R/convertColor.R	(revision 75383)
++++ src/library/grDevices/R/convertColor.R	(working copy)
+@@ -57,8 +57,11 @@
+     } else stop("'gamma' must be a scalar or 'sRGB'")
+ 
+     toXYZ <- function(rgb,...) { dogamma(rgb) %*% M }
+-    toRGB <- function(xyz,...) { ungamma(xyz %*% solve(M)) }
+-
++    toRGB <- function(xyz,...) {
++      res <- ungamma(xyz %*% solve(M))
++      # for backward compatibily, return vector if input is vector
++      if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
++    }
+     if (is.null(name)) name <- deparse(sys.call())[1L]
+     rval <- list(toXYZ = toXYZ, fromXYZ = toRGB, gamma = gamma,
+                  reference.white = white, name = name)
+@@ -126,33 +129,43 @@
+ 
+          "Lab" =
+          colorConverter(fromXYZ = function(XYZ, white) {
+-             stopifnot(length(XYZ) == 3L)
++             stopifnot(length(XYZ) == 3 | ncol(XYZ) == 3L)
++             white <- rep(white, length.out=3L)
++             if (is.null(nrow(XYZ))) XYZ <- matrix(XYZ, nrow = 1L)
++
+              epsilon <- 216/24389
+              kappa <- 24389/27
+ 
+-             xyzr <- XYZ/white
++             xyzr <- cbind(XYZ[,1L] / white[1L],
++                           XYZ[,2L] / white[2L],
++                           XYZ[,3L] / white[3L])
+              fxyz <- ifelse(xyzr <= epsilon, (kappa*xyzr+16)/116, xyzr^(1/3))
+ 
+-             c(L = 116*fxyz[2L]-16,
+-               a = 500*(fxyz[1L]-fxyz[2L]),
+-               b = 200*(fxyz[2L]-fxyz[3L]))
++             res <- cbind(L = 116*fxyz[,2L]-16,
++                          a = 500*(fxyz[,1L]-fxyz[,2L]),
++                          b = 200*(fxyz[,2L]-fxyz[,3L]))
++             if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
+          },
+          toXYZ = function(Lab, white) {
+-             stopifnot(length(Lab) == 3L)
++             stopifnot(ncol(Lab) == 3L | length(Lab)==3)
++             white <- rep(white, length.out=3L)
++             if (is.null(nrow(Lab))) Lab <- matrix(Lab, nrow = 1L)
+ 
+              epsilon <- 216/24389
+              kappa <- 24389/27
+ 
+-             yr <- if(Lab[1L] < kappa*epsilon) Lab[1L]/kappa else ((Lab[1L]+16)/116)^3
+-             fy <- ((if(yr <= epsilon) kappa*yr else Lab[1L]) + 16)/116
+-             fx <- Lab[2L]/500+fy
+-             fz <- fy-Lab[3L]/200
++             yr <- ifelse(Lab[,1L] < kappa*epsilon,
++                          Lab[,1L]/kappa, ((Lab[,1L]+16)/116)^3)
++             fy <- (ifelse(yr <= epsilon, kappa*yr, Lab[,1L])+16)/116
++             fx <- Lab[,2L]/500+fy
++             fz <- fy-Lab[,3L]/200
+ 
+-             zr <- if(fz^3 <= epsilon) (116*fz-16)/kappa else fz^3
+-             xr <- if(fx^3 <= epsilon) (116*fx-16)/kappa else fx^3
++             zr <- ifelse(fz^3 <= epsilon, (116*fz-16)/kappa, fz^3)
++             xr <- ifelse(fx^3 <= epsilon, (116*fx-16)/kappa, fx^3)
+ 
+-             c(X = xr, Y = yr, Z = zr)*white
++             res <- cbind(X = xr*white[1], Y = yr*white[2], Z = zr*white[3])
+ 
++             if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
+          }, name = "Lab", white = NULL),
+ 
+          "Luv" =
+@@ -160,38 +173,40 @@
+              epsilon <- 216/24389
+              kappa <- 24389/27
+ 
+-             yr <- XYZ[2L]/white[2L]
++             yr <- XYZ[,2L]/white[2L]
+ 
+-             denom  <- sum(XYZ * c(1,15,3))
++             denom  <- rowSums(cbind(XYZ[,1L], XYZ[,2L]*15, XYZ[,3L]*3))
+              wdenom <- sum(white*c(1,15,3))
+ 
+-             u1 <- if(denom == 0) 1 else 4*XYZ[1L]/denom
+-             v1 <- if(denom == 0) 1 else 9*XYZ[2L]/denom
++             u1 <- ifelse(denom == 0, 1, 4*XYZ[,1L]/denom)
++             v1 <- ifelse(denom == 0, 1, 9*XYZ[,2L]/denom)
+              ur <- 4*white[1L]/wdenom
+              vr <- 9*white[2L]/wdenom
+ 
+-             L <- if(yr <= epsilon) kappa*yr else 116*(yr^(1/3))-16
+-             c(L = L, u = 13*L*(u1-ur), v = 13*L*(v1-vr))
++             L <- ifelse(yr <= epsilon, kappa*yr, 116*(yr^(1/3))-16)
++             res <- cbind(L = L, u = 13*L*(u1-ur), v = 13*L*(v1-vr))
++             if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
+          }, toXYZ = function(Luv,white) {
+              epsilon <- 216/24389
+              kappa <- 24389/27
+ 
+-             if(Luv[1L] == 0) return(c(0,0,0))
+-
+              u0 <- 4*white[1L]/(white[1L]+15*white[2L]+3*white[3L])
+              v0 <- 9*white[2L]/(white[1L]+15*white[2L]+3*white[3L])
+ 
+-             Y <- if(Luv[1L] <= kappa*epsilon)
+-                     Luv[1L]/kappa else ((Luv[1L]+16)/116)^3
+-             a <- (52*Luv[1L]/(Luv[2L]+13*Luv[1L]*u0)-1)/3
++             Y <- ifelse(Luv[,1L] <= kappa*epsilon,
++                         Luv[,1L]/kappa, ((Luv[,1L]+16)/116)^3)
++             a <- (52*Luv[,1L]/(Luv[,2L]+13*Luv[,1L]*u0)-1)/3
+              b <- -5*Y
+              c <- -1/3
+-             d <- Y*(39*Luv[1L]/(Luv[3L]+13*Luv[1L]*v0)-5)
++             d <- Y*(39*Luv[,1L]/(Luv[,3L]+13*Luv[,1L]*v0)-5)
+ 
+              X <- (d-b)/(a-c)
+              Z <- X*a+b
+ 
+-             c(X = X,Y = Y,Z = Z)
++             res <- cbind(X = X,Y = Y,Z = Z)
++
++             res[which(Luv[,1L] == 0L),] <- c(0,0,0)
++             if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
+          }, name = "Luv", white = NULL)
+ 
+          ) # colorspaces
+@@ -261,7 +276,7 @@
+       rgb
+   }
+ 
+-  xyz <- apply(color, 1L, from$toXYZ, from.ref.white)
++  xyz <- from$toXYZ(color, from.ref.white)
+ 
+   if (is.null(nrow(xyz)))
+     xyz <- matrix(xyz, nrow = 1L)
+@@ -270,17 +285,17 @@
+       mc <- match.call()
+       if (is.null(mc$from.ref.white) || is.null(mc$to.ref.white))
+           warning("color spaces use different reference whites")
+-      xyz <- t(chromaticAdaptation(t(xyz), from.ref.white, to.ref.white))
++      xyz <- chromaticAdaptation(xyz, from.ref.white, to.ref.white)
+   }
+ 
+-  rval <- apply(xyz, 2L, to$fromXYZ, to.ref.white)
++  rval <- to$fromXYZ(xyz, to.ref.white)
+ 
++  if(is.null(nrow(rval)))
++      rval <- t(rval)
++
+   if (inherits(to,"RGBcolorConverter"))
+       rval <- trim(rval)
+ 
+-  if (is.matrix(rval))
+-      rval <- t(rval)
+-
+   if (is.null(scale.out))
+       rval
+   else
