@@ -51,9 +51,9 @@ colorConverter(toXYZ, fromXYZ, name, white = NULL)
   the colour space (as for the RGB spaces) this second argument should
   be ignored and may be \code{...}.
 
-  As of R 3.6.0 the built in color converters, along with
-  \code{\link{convertColor}}, were vectorized to process three column
-  color matrices in one call, instead of row by row via \code{\link{apply}}.
+  As of R 3.6.0 the built in color converters along with
+  \code{\link{convertColor}} were vectorized to process three column
+  color matrices in one call instead of row by row via \code{\link{apply}}.
   In order to maintain backwards compatibility, \code{colorConverter} wraps
   \code{fromXYZ} and \code{toXYZ} in a \code{apply} loop in case they do not
   also support matrix inputs.  If the \code{fromXYZ} and \code{toXYZ} functions

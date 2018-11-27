@@ -117,10 +117,13 @@ colorConverter <-
 {
     stopifnot(isTRUE(as.logical(vectorized) %in% c(TRUE, FALSE)))
     if(!vectorized) {
-      toXYZ <- function(color, white) apply(color, 1L, toXYZ, white)
-      fromXYZ <- function(color, white) apply(color, 1L, fromXYZ, white)
+      toXYZv <- function(color, white) apply(color, 1L, toXYZ, white)
+      fromXYZv <- function(color, white) apply(color, 1L, fromXYZ, white)
+    } else {
+      toXYZv <- toXYZ
+      fromXYZv <- fromXYZ
     }
-    rval <- list(toXYZ = toXYZ, fromXYZ = fromXYZ,
+    rval <- list(toXYZ = toXYZv, fromXYZ = fromXYZv,
                  name = name, white = white)
     class(rval) <- "colorConverter"
     rval
@@ -130,7 +133,7 @@ colorspaces <-
     list("XYZ" =
          colorConverter(toXYZ = function(x,w) x,
                         fromXYZ = function(x,w) x,
-                        white = NULL,name = "XYZ"),
+                        white = NULL,name = "XYZ",vectorized = TRUE),
 
          "Apple RGB" =
          make.rgb(red = c(0.6250,0.3400),
@@ -192,7 +195,7 @@ colorspaces <-
              res <- cbind(X = xr*white[1], Y = yr*white[2], Z = zr*white[3])
 
              if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
-         }, name = "Lab", white = NULL),
+         }, name = "Lab", white = NULL, vectorized = TRUE),
 
          "Luv" =
          colorConverter(fromXYZ = function(XYZ, white) {
@@ -235,7 +238,7 @@ colorspaces <-
 
              res[which(L == 0L),] <- c(0,0,0)
              if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
-         }, name = "Luv", white = NULL)
+         }, name = "Luv", white = NULL, vectorized = TRUE)
 
          ) # colorspaces
 
