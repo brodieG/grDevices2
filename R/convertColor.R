@@ -16,6 +16,22 @@
 #  A copy of the GNU General Public License is available at
 #  https://www.R-project.org/Licenses/
 
+## Simplified and faster version of `ifelse` with constraints:
+##
+## * test, yes, and no must be the same length
+## * test must be logical
+## * yes and no must be numeric
+## * if test is NA, then `no` is returned, which is particularly okay if it is
+##   the case that when test is NA so is NO, as tends to be the case here.
+
+.ifelse <- function(test, yes, no) {
+  test.w <- which(test)
+  no[test.w] <- yes[test.w]
+  no
+}
+## Benchmarks show x ^ 3 is much slower than x * x * x
+
+pow3 <- function(x) x * x * x
 
 ## easyRGB scales Y=100 for white
 ## brucelindbloom uses XYZ in [0,1], so multiply by 100 to convert
@@ -328,19 +344,3 @@ adjustcolor <- function(col, alpha.f = 1, red.f = 1, green.f = 1,
                         matrix(offset, nrow = 4L, ncol = ncol(x))))
     rgb(x[1L,], x[2L,], x[3L,], x[4L,])
 }
-## Simplified version of `ifelse` with constraints:
-##
-## * test, yes, and no must be the same length
-## * test must be logical
-## * yes and no must be numeric
-## * if test is NA, then `no` is returned, which is particularly okay if it is
-##   the case that when test is NA so is NO, as tends to be the case here.
-
-.ifelse <- function(test, yes, no) {
-  test.w <- which(test)
-  no[test.w] <- yes[test.w]
-  no
-}
-## Benchmarks show x ^ 3 is much slower than x * x * x
-
-pow3 <- function(x) x * x * x
