@@ -129,7 +129,7 @@ colorspaces <-
 
          "Lab" =
          colorConverter(fromXYZ = function(XYZ, white) {
-             stopifnot(length(XYZ) == 3 | ncol(XYZ) == 3L)
+             stopifnot(length(XYZ) == 3 || ncol(XYZ) == 3L)
              white <- rep(white, length.out=3L)
              if (is.null(nrow(XYZ))) XYZ <- matrix(XYZ, nrow = 1L)
 
@@ -147,7 +147,7 @@ colorspaces <-
              if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
          },
          toXYZ = function(Lab, white) {
-             stopifnot(ncol(Lab) == 3L | length(Lab)==3)
+             stopifnot(ncol(Lab) == 3L || length(Lab)==3)
              white <- rep(white, length.out=3L)
              if (is.null(nrow(Lab))) Lab <- matrix(Lab, nrow = 1L)
 
