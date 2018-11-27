@@ -52,13 +52,13 @@ colorConverter(toXYZ, fromXYZ, name, white = NULL)
   be ignored and may be \code{...}.
 
   As of R 3.6.0 the built in color converters, along with
-  \code{\link{convertColor}}, were vectorized to process the three column
+  \code{\link{convertColor}}, were vectorized to process three column
   color matrices in one call, instead of row by row via \code{\link{apply}}.
   In order to maintain backwards compatibility, \code{colorConverter} wraps
-  \code{fromXYZ} and \code{toXYZ} in a \code{apply} loop.  If the \code{fromXYZ}
-  and \code{toXYZ} functions you are using operate correctly on the whole color
-  matrix at once instead of row by row, you can set \code{vectorized=TRUE} for
-  a performance improvement.
+  \code{fromXYZ} and \code{toXYZ} in a \code{apply} loop in case they do not
+  also support matrix inputs.  If the \code{fromXYZ} and \code{toXYZ} functions
+  you are using operate correctly on the whole color matrix at once instead of
+  row by row, you can set \code{vectorized=TRUE} for a performance improvement.
 }
 \value{
   An object of class \code{colorConverter}
