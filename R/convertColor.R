@@ -347,5 +347,5 @@ adjustcolor <- function(col, alpha.f = 1, red.f = 1, green.f = 1,
 # }
 ## Benchmarks show x ^ 3 is much slower than x * x * x
 
-# pow3 <- function(x) x * x * x
-pow3 <- function(x) x ^ 3
+pow3 <- function(x) x * x * x
+# pow3 <- function(x) x ^ 3

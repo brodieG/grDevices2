@@ -12,8 +12,10 @@ color_to_color <- function(
   )
   fun_t <- function(...) {
     res <- try(
-      if(time)
+      if(time) {
+        gc()
         mean(microbenchmark::microbenchmark(fun(...), times=time)[['time']])/1e9
+      }
       else fun(...), silent=TRUE
     )
     if(inherits(res, 'try-error')) res <- 'error'
