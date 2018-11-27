@@ -337,10 +337,14 @@ adjustcolor <- function(col, alpha.f = 1, red.f = 1, green.f = 1,
 ##   the case that when test is NA so is NO, as tends to be the case here.
 
 .ifelse <- function(test, yes, no) {
-  test.w <- which(test)
-  no[test.w] <- yes[test.w]
-  no
+  ifelse(test, yes, no)
 }
+
+# .ifelse <- function(test, yes, no) {
+#   test.w <- which(test)
+#   no[test.w] <- yes[test.w]
+#   no
+# }
 ## Benchmarks show x ^ 3 is much slower than x * x * x
 
 # pow3 <- function(x) x * x * x
