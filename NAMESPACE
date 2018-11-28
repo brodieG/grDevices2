@@ -1,2 +1,3 @@
-export(colorRamp, colorRampPalette, convertColor, colorConverter, colorspaces)
+export(colorRamp, colorRampPalette, convertColor, colorConverter, colorspaces,
+       make.rgb)
 importFrom(grDevices,col2rgb)
