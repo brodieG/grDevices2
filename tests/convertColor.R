@@ -205,6 +205,33 @@ stopifnot(
     grDevices0::convertColor(c(.5, 1, 1), 'XYZ', 'sRGB', clip=TRUE),
     grDevices2a::convertColor(c(.5, 1, 1), 'XYZ', 'sRGB', clip=TRUE)
 ) )
+## double check that gamma conversions are working; this should already be
+## covered from previous tests, but can't see it in `covr` because of
+## https://github.com/r-lib/covr/issues/113
+
+srgb0 <- grDevices0::make.rgb(
+  red = c(0.6400, 0.3300),
+  green = c(0.3000,0.6000),
+  blue = c(0.1500,0.0600), gamma = "sRGB",
+  white = "D65", name = "sRGB"
+)
+srgb2a <- grDevices2a::make.rgb(
+  red = c(0.6400, 0.3300),
+  green = c(0.3000,0.6000),
+  blue = c(0.1500,0.0600), gamma = "sRGB",
+  white = "D65", name = "sRGB"
+)
+stopifnot(
+  identical(
+    grDevices0::convertColor(space.input$sRGB, srgb0, 'XYZ'),
+    grDevices2a::convertColor(space.input$sRGB, srgb2a, 'XYZ')
+) )
+stopifnot(
+  identical(
+    grDevices0::convertColor(space.input$XYZ, 'XYZ', srgb0),
+    grDevices2a::convertColor(space.input$XYZ, 'XYZ', srgb2a)
+) )
+
 # - Examples -------------------------------------------------------------------
 
 ## make.rgb
