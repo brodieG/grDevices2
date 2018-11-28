@@ -232,6 +232,9 @@ stopifnot(
     grDevices2a::convertColor(space.input$XYZ, 'XYZ', srgb2a)
 ) )
 
+print(srgb2a)
+print(grDevices2a::colorspaces$Lab)
+
 # - Examples -------------------------------------------------------------------
 
 ## make.rgb
@@ -327,9 +330,6 @@ cc2av <- round(
     scale.out = 255
 ) )
 stopifnot(cc2av == cols)
-
-## colorRamp
-## convertColor
 
 # - Performance ----------------------------------------------------------------
 
