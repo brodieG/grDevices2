@@ -2,9 +2,6 @@
 ## color conversion functions and called it `grDevices0`.  If you have a recent
 ## version of r-devel (>= r75340) you can just use `grDevices` directly.
 
-library(grDevices0)
-## library(grDevices)   ## if you have r-devel > r75340
-
 ## The minimal changes 'level-1' patch is `grDevices1`, and the 'level-2' patch
 ## is `grDevices2`.  To replicate these tests you can checkout the 'level-1'
 ## branch and the 'level-2' branch to different directories and install each of
@@ -31,7 +28,10 @@ library(grDevices0)
 ##   list-matrices.
 
 if(!require(microbenchmark)) warning("Timed tests require microbenchmark")
-source('tests/utils.R')
+
+source(
+  file.path(system.file(package='grDevices2a'), 'tests', 'extra', 'utils.R')
+)
 
 ranges.raw <- c(
   0,   1,   0,   1,   0,   1,  # rgb*/xyz
@@ -253,95 +253,97 @@ stopifnot(
       grDevices0::convertColor(cols, from = "sRGB", to = "Luv", scale.in = 255),
     grDevices2a::convertColor(cols, from = "sRGB", to = "Luv", scale.in = 255)
 ) )
+hex <-
+  grDevices0::convertColor(luv, from = "Luv",  to = hexcolor0, scale.out = NULL)
+
+## convertColor now always returns matrices
+
 stopifnot(
   all.equal(
-    hex <- grDevices0::convertColor(
-      luv, from = "Luv",  to = hexcolor0, scale.out = NULL
-    ),
+    matrix(hex),
     grDevices2a::convertColor(
       luv, from = "Luv",  to = hexcolor2a, scale.out = NULL
     )
 ) )
-
 ## must make hex a matrix before using it
-
-stopifnot(
-  all.equal(
-    (cc <- round(
-      grDevices0::convertColor(as.matrix(hex), from = hexcolor0, to = "sRGB",
-                              scale.in = NULL, scale.out = 255))),
-      grDevices2a::convertColor(as.matrix(hex), from = hexcolor2a, to = "sRGB",
-                              scale.in = NULL, scale.out = 255))
-                          )
-
+cc <- round(
+   grDevices0::convertColor(
+      as.matrix(hex), from = hexcolor0, to = "sRGB", scale.in = NULL,
+      scale.out = 255
+) )
+cc2a <- round(
+  grDevices2a::convertColor(
+    as.matrix(hex), from = hexcolor2a, to = "sRGB", scale.in = NULL,
+    scale.out = 255
+) )
+stopifnot(all.equal(cc, cc2a))
 stopifnot(cc == cols)
 
-
-hexcolorv <- grDevices2a::colorConverter(toXYZ = function(hex, ...) {
-                            rgb <- t(col2rgb(hex))/255
-                            grDevices2a::colorspaces$sRGB$toXYZ(rgb, ...) },
-                           fromXYZ = function(xyz, ...) {
-                              rgb <- grDevices2a::colorspaces$sRGB$fromXYZ(
-                                      xyz, ...
-                              )
-                              rgb <- round(rgb, 5)
-                              oob <- pmin(rgb[,1],rgb[,2],rgb[,3]) < 0 |
-                                     pmax(rgb[,1],rgb[,2],rgb[,3]) > 0
-                              res <- rep(NA_character_, nrow(rgb))
-                              res[!oob] <- rgb(rgb[!oob,,drop=FALSE])},
-                           white = "D65", name = "#rrggbb",
-                           vectorized=TRUE)
-(ccv <- round(
+hexcolorv <- grDevices2a::colorConverter(
+  toXYZ = function(hex, ...) {
+    rgb <- t(col2rgb(hex))/255
+    grDevices2a::colorspaces$sRGB$toXYZ(rgb, ...)
+  },
+  fromXYZ = function(xyz, ...) {
+      rgb <- grDevices2a::colorspaces$sRGB$fromXYZ(xyz, ...)
+      rgb <- round(rgb, 5)
+      oob <-
+        pmin(rgb[,1],rgb[,2],rgb[,3]) < 0 | pmax(rgb[,1],rgb[,2],rgb[,3]) > 0
+      res <- rep(NA_character_, nrow(rgb))
+      res[!oob] <- rgb(rgb[!oob,,drop=FALSE])},
+   white = "D65", name = "#rrggbb",
+   vectorized=TRUE
+ )
+cc2av <- round(
   grDevices2a::convertColor(
-    as.matrix(hex), from = hexcolorv, to = "sRGB", scale.in = NULL, 
-    scale.out = 255)))
-stopifnot(ccv == cols)
+    as.matrix(hex), from = hexcolorv, to = "sRGB", scale.in = NULL,
+    scale.out = 255
+) )
+stopifnot(cc2av == cols)
 
 ## colorRamp
 ## convertColor
 
 # - Performance ----------------------------------------------------------------
 
-stop('performance section best run interactively')
+if(FALSE) {
+  cc0t <- color_to_color(space.input, fun=grDevices0::convertColor, time=5)
+  cc1t <- color_to_color(space.input, fun=grDevices1::convertColor, time=5)
+  cc2t <- color_to_color(space.input, fun=grDevices2a::convertColor, time=5)
 
-cc0t <- color_to_color(space.input, fun=grDevices0::convertColor, time=5)
-cc1t <- color_to_color(space.input, fun=grDevices1::convertColor, time=5)
-cc2t <- color_to_color(space.input, fun=grDevices2a::convertColor, time=5)
+  cc0t/cc1t  # level-1 performance improvement
+  cc0t/cc2t  # level-2 performance improvement
 
-cc0t/cc1t  # level-1 performance improvement
-cc0t/cc2t  # level-2 performance improvement
+  ## try smaller matrices to make sure performance is not degraded.
 
-## try smaller matrices to make sure performance is not degraded.
+  space.ten <- 
+    lapply(space.input, function(x) x[seq(1, nrow(x), length.out=10),])
 
-space.ten <- lapply(space.input, function(x) x[seq(1, nrow(x), length.out=10),])
+  cc0t.10 <- color_to_color(space.ten, fun=grDevices0::convertColor, time=100)
+  cc1t.10 <- color_to_color(space.ten, fun=grDevices1::convertColor, time=100)
+  cc2t.10 <- color_to_color(space.ten, fun=grDevices2a::convertColor, time=100)
 
-cc0t.10 <- color_to_color(space.ten, fun=grDevices0::convertColor, time=100)
-cc1t.10 <- color_to_color(space.ten, fun=grDevices1::convertColor, time=100)
-cc2t.10 <- color_to_color(space.ten, fun=grDevices2a::convertColor, time=100)
+  cc0t.10/cc1t.10  # level-1 performance improvement
+  cc0t.10/cc2t.10  # level-2 performance improvement
 
-cc0t.10/cc1t.10  # level-1 performance improvement
-cc0t.10/cc2t.10  # level-2 performance improvement
+  ## colorRamp
 
-## colorRamp
+  clrs <-  c("#FFFFD4", "#FED98E", "#FE9929", "#D95F0E", "#993404")
+  ramp0 <- colorRamp(clrs, space='Lab')
+  ramp2 <- grDevices2a::colorRamp(clrs, space='Lab')
 
-clrs <-  c("#FFFFD4", "#FED98E", "#FE9929", "#D95F0E", "#993404")
-ramp0 <- colorRamp(clrs, space='Lab')
-ramp2 <- grDevices2a::colorRamp(clrs, space='Lab')
-
-vals <- (0:1e4) / 1e4
-microbenchmark::microbenchmark(ramp0(vals), ramp2(vals), times=5)
+  vals <- (0:1e4) / 1e4
+  microbenchmark::microbenchmark(ramp0(vals), ramp2(vals), times=5)
+}
 
 # - Visualize ------------------------------------------------------------------
 
 ## Just to confirm the color coverage is reasonable.
 
-stop('visualize section best run interactively')
-
-if(require(scales)) {
+if(FALSE && require(scales)) {
   rgb.mx <- cc2.0[['CIE RGB', 'sRGB']]
   rgb.mx.2 <-
     rgb.mx[order(rgb.mx[,1], rgb.mx[,2], rgb.mx[,3], decreasing=TRUE),]
   scales::show_col(rgb(rgb.mx.2), labels=FALSE)
 }
-
 

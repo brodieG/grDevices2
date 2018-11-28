@@ -9,7 +9,10 @@ There are three branches of interest on this repository:
 
 * level-0: mimics the state of `grDevices` in r-devel >= 75340 c.a. R3.6.0.
 * level-1: applies the first "minimal changes" patch.
-* level-2: applies level-1 and additional optimizations.
+* level-2a:
+    * applies level-1 and additional optimizations.
+    * wraps `apply` around `colorConverter` functions so non-vectorized
+      functions can still be used with `convertColor`
 
 You can install all these branches with the following commands:
 
@@ -28,5 +31,5 @@ Then you can run tests with (note these are not intended for running with R CMD
 check, I just put the tests in tests):
 
 ```
-source('tests/convertColor.R', echo=TRUE)
+testInstalledPackage('grDevices2a')
 ```
