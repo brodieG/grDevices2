@@ -117,9 +117,9 @@ stopifnot(matrix.equal(cc1.2, cc2.2))
 ## 0 length, All errors on both sides
 
 space.zero <- sapply(space.input, function(x) numeric(), simplify=FALSE)
-cc0.3 <- color_to_color(space.zero, fun=convertColor)
+cc0.3 <- color_to_color(space.zero, fun=grDevices0::convertColor)
 cc1.3 <- color_to_color(space.zero, fun=grDevices1::convertColor)
-cc2.3 <- color_to_color(space.zero, fun=grDevices1::convertColor)
+cc2.3 <- color_to_color(space.zero, fun=grDevices2::convertColor)
 
 stopifnot(all.equal(cc0.3, cc1.3))
 stopifnot(all.equal(cc0.3, cc2.3))

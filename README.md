@@ -23,7 +23,7 @@ git checkout level-0
 R CMD INSTALL .
 git checkout level-1
 R CMD INSTALL .
-git checkout level-2
+git checkout level-2a
 R CMD INSTALL . --install-tests
 ```
 
@@ -31,5 +31,5 @@ Then you can run tests with (note these are not intended for running with R CMD
 check, I just put the tests in tests):
 
 ```
-testInstalledPackage('grDevices2a')
+tools::testInstalledPackage('grDevices2a')
 ```
