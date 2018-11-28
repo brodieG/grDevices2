@@ -15,7 +15,7 @@
 make.rgb(red, green, blue, name = NULL, white = "D65",
          gamma = 2.2)
 
-colorConverter(toXYZ, fromXYZ, name, white = NULL)
+colorConverter(toXYZ, fromXYZ, name, white = NULL, vectorized = FALSE)
 }
 \arguments{
   \item{red,green,blue}{Chromaticity (xy or xyY) of RGB primaries}
