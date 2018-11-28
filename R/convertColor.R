@@ -111,18 +111,29 @@ chromaticAdaptation <- function(xyz, from, to) {
     xyz %*% M
 }
 
+vectorizeConverter <- function(converter) {
+    function(color, white) {
+        nr <- if(is.null(nrow(color))) length(color) else nrow(color)
+        res <- apply(color, 1L, converter, white)
+        if (is.null(nrow(res)))
+            matrix(res, nrow=nr)
+        else
+            t(res)
+    }
+}
 
 colorConverter <-
     function(toXYZ, fromXYZ, name, white = NULL, vectorized=FALSE)
 {
     stopifnot(isTRUE(as.logical(vectorized) %in% c(TRUE, FALSE)))
-    if(!vectorized) {
-      toXYZv <- function(color, white) apply(color, 1L, toXYZ, white)
-      fromXYZv <- function(color, white) apply(color, 1L, fromXYZ, white)
-    } else {
-      toXYZv <- toXYZ
-      fromXYZv <- fromXYZ
-    }
+
+    toXYZv <- if (!vectorized)
+                  vectorizeConverter(toXYZ)
+              else toXYZ
+    fromXYZv <- if (!vectorized)
+                    vectorizeConverter(fromXYZ)
+              else fromXYZ
+
     rval <- list(toXYZ = toXYZv, fromXYZ = fromXYZv,
                  name = name, white = white)
     class(rval) <- "colorConverter"

@@ -53,7 +53,7 @@ colorConverter(toXYZ, fromXYZ, name, white = NULL)
 
   As of R 3.6.0 the built in color converters along with
   \code{\link{convertColor}} were vectorized to process three column
-  color matrices in one call instead of row by row via \code{\link{apply}}.
+  color matrices in one call, instead of row by row via \code{\link{apply}}.
   In order to maintain backwards compatibility, \code{colorConverter} wraps
   \code{fromXYZ} and \code{toXYZ} in a \code{apply} loop in case they do not
   also support matrix inputs.  If the \code{fromXYZ} and \code{toXYZ} functions
@@ -97,13 +97,14 @@ zapsmall(luv <- convertColor(cols, from = "sRGB", to = "Luv", scale.in = 255))
                           scale.in = NULL, scale.out = 255)))
 stopifnot(cc == cols)
 
-## Internally vectorized version of hexcolor:
+## Internally vectorized version of hexcolor, notice the use
+## of `vectorized = TRUE`:
 
 hexcolorv <- colorConverter(toXYZ = function(hex, ...) {
                             rgb <- t(col2rgb(hex))/255
                             colorspaces$sRGB$toXYZ(rgb, ...) },
                            fromXYZ = function(xyz, ...) {
-                              rgb <- colorspaces$sRGB$fromXYZ(xyz, ..)
+                              rgb <- colorspaces$sRGB$fromXYZ(xyz, ...)
                               rgb <- round(rgb, 5)
                               oob <- pmin(rgb[,1],rgb[,2],rgb[,3]) < 0 |
                                      pmax(rgb[,1],rgb[,2],rgb[,3]) > 0
