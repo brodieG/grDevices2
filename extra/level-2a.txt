@@ -55,23 +55,49 @@ Index: src/library/grDevices/R/convertColor.R
      if (is.null(name)) name <- deparse(sys.call())[1L]
      rval <- list(toXYZ = toXYZ, fromXYZ = toRGB, gamma = gamma,
                   reference.white = white, name = name)
-@@ -93,7 +112,14 @@
+@@ -92,9 +111,30 @@
+     xyz %*% M
  }
  
++vectorizeConverter <- function(converter) {
++    function(color, white) {
++        nr <- if(is.null(nrow(color))) length(color) else nrow(color)
++        res <- apply(color, 1L, converter, white)
++        if (is.null(nrow(res)))
++            matrix(res, nrow=nr)
++        else
++            t(res)
++    }
++}
  
 -colorConverter <- function(toXYZ, fromXYZ, name, white = NULL) {
+-    rval <- list(toXYZ = toXYZ, fromXYZ = fromXYZ,
 +colorConverter <-
 +    function(toXYZ, fromXYZ, name, white = NULL, vectorized=FALSE)
 +{
 +    stopifnot(isTRUE(as.logical(vectorized) %in% c(TRUE, FALSE)))
-+    if(!vectorized) {
-+      toXYZ <- function(color, white) apply(color, 1L, toXYZ, white)
-+      fromXYZ <- function(color, white) apply(color, 1L, fromXYZ, white)
-+    }
-     rval <- list(toXYZ = toXYZ, fromXYZ = fromXYZ,
++
++    toXYZv <- if (!vectorized)
++                  vectorizeConverter(toXYZ)
++              else toXYZ
++    fromXYZv <- if (!vectorized)
++                    vectorizeConverter(fromXYZ)
++              else fromXYZ
++
++    rval <- list(toXYZ = toXYZv, fromXYZ = fromXYZv,
                   name = name, white = white)
      class(rval) <- "colorConverter"
-@@ -126,33 +152,46 @@
+     rval
+@@ -104,7 +144,7 @@
+     list("XYZ" =
+          colorConverter(toXYZ = function(x,w) x,
+                         fromXYZ = function(x,w) x,
+-                        white = NULL,name = "XYZ"),
++                        white = NULL,name = "XYZ",vectorized = TRUE),
+ 
+          "Apple RGB" =
+          make.rgb(red = c(0.6250,0.3400),
+@@ -126,34 +166,47 @@
  
           "Lab" =
           colorConverter(fromXYZ = function(XYZ, white) {
@@ -128,11 +154,13 @@ Index: src/library/grDevices/R/convertColor.R
 -             c(X = xr, Y = yr, Z = zr)*white
 +             res <- cbind(X = xr*white[1], Y = yr*white[2], Z = zr*white[3])
  
+-         }, name = "Lab", white = NULL),
 +             if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
-          }, name = "Lab", white = NULL),
++         }, name = "Lab", white = NULL, vectorized = TRUE),
  
           "Luv" =
-@@ -160,48 +199,49 @@
+          colorConverter(fromXYZ = function(XYZ, white) {
+@@ -160,48 +213,49 @@
               epsilon <- 216/24389
               kappa <- 24389/27
  
@@ -181,12 +209,13 @@ Index: src/library/grDevices/R/convertColor.R
               Z <- X*a+b
  
 -             c(X = X,Y = Y,Z = Z)
+-         }, name = "Luv", white = NULL)
 +             res <- cbind(X = X,Y = Y,Z = Z)
-+
+ 
 +             res[which(L == 0L),] <- c(0,0,0)
 +             if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
-          }, name = "Luv", white = NULL)
- 
++         }, name = "Luv", white = NULL, vectorized = TRUE)
++
           ) # colorspaces
  
  
@@ -199,7 +228,7 @@ Index: src/library/grDevices/R/convertColor.R
  convertColor <-
      function(color, from, to,
               from.ref.white = NULL, to.ref.white = NULL,
-@@ -261,7 +301,7 @@
+@@ -261,7 +315,7 @@
        rgb
    }
  
@@ -208,7 +237,7 @@ Index: src/library/grDevices/R/convertColor.R
  
    if (is.null(nrow(xyz)))
      xyz <- matrix(xyz, nrow = 1L)
-@@ -270,17 +310,17 @@
+@@ -270,17 +324,17 @@
        mc <- match.call()
        if (is.null(mc$from.ref.white) || is.null(mc$to.ref.white))
            warning("color spaces use different reference whites")
@@ -235,6 +264,15 @@ Index: src/library/grDevices/man/make.rgb.Rd
 ===================================================================
 --- src/library/grDevices/man/make.rgb.Rd	(revision 75683)
 +++ src/library/grDevices/man/make.rgb.Rd	(working copy)
+@@ -15,7 +15,7 @@
+ make.rgb(red, green, blue, name = NULL, white = "D65",
+          gamma = 2.2)
+ 
+-colorConverter(toXYZ, fromXYZ, name, white = NULL)
++colorConverter(toXYZ, fromXYZ, name, white = NULL, vectorized = FALSE)
+ }
+ \arguments{
+   \item{red,green,blue}{Chromaticity (xy or xyY) of RGB primaries}
 @@ -28,6 +28,8 @@
      to this space}
    \item{toXYZ}{Function to convert from this space to XYZ tristimulus
@@ -249,8 +287,8 @@ Index: src/library/grDevices/man/make.rgb.Rd
    the colour space (as for the RGB spaces) this second argument should
    be ignored and may be \code{...}.
 +
-+  As of R 3.6.0 the built in color converters, along with
-+  \code{\link{convertColor}}, were vectorized to process three column
++  As of R 3.6.0 the built in color converters along with
++  \code{\link{convertColor}} were vectorized to process three column
 +  color matrices in one call, instead of row by row via \code{\link{apply}}.
 +  In order to maintain backwards compatibility, \code{colorConverter} wraps
 +  \code{fromXYZ} and \code{toXYZ} in a \code{apply} loop in case they do not
@@ -260,18 +298,19 @@ Index: src/library/grDevices/man/make.rgb.Rd
  }
  \value{
    An object of class \code{colorConverter}
-@@ -85,6 +96,25 @@
+@@ -85,6 +96,26 @@
  (cc <- round(convertColor(as.matrix(hex), from = hexcolor, to = "sRGB",
                            scale.in = NULL, scale.out = 255)))
  stopifnot(cc == cols)
 +
-+## Internally vectorized version of hexcolor:
++## Internally vectorized version of hexcolor, notice the use
++## of `vectorized = TRUE`:
 +
 +hexcolorv <- colorConverter(toXYZ = function(hex, ...) {
 +                            rgb <- t(col2rgb(hex))/255
 +                            colorspaces$sRGB$toXYZ(rgb, ...) },
 +                           fromXYZ = function(xyz, ...) {
-+                              rgb <- colorspaces$sRGB$fromXYZ(xyz, ..)
++                              rgb <- colorspaces$sRGB$fromXYZ(xyz, ...)
 +                              rgb <- round(rgb, 5)
 +                              oob <- pmin(rgb[,1],rgb[,2],rgb[,3]) < 0 |
 +                                     pmax(rgb[,1],rgb[,2],rgb[,3]) > 0
