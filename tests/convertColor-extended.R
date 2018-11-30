@@ -331,6 +331,104 @@ cc2av <- round(
 ) )
 stopifnot(cc2av == cols)
 
+# - More Vectorization tests ---------------------------------------------------
+
+## Test that auto-vectorization of old converters works by creating new
+## converters from the old ones
+
+spaces.conv <- lapply(
+  grDevices0::colorspaces,
+  function(x) {
+    if(is.null(x[['white']])) x[['white']] <- x[['reference.white']]
+    do.call(
+      grDevices2a::colorConverter,
+      unname(x[c('toXYZ', 'fromXYZ', 'name', 'white')])
+    )
+  }
+)
+cols <- t(col2rgb(palette()))/255 * .7 + .15
+XYZ <- grDevices2a::convertColor(cols, 'sRGB', 'XYZ')
+fromXYZ <- vapply(
+  spaces.conv, grDevices2a::convertColor, FUN.VALUE=XYZ,
+  from=spaces.conv[['XYZ']], color=XYZ, clip=NA
+)
+
+## Back to XYZ, delta to original XYZ should be close to zero
+
+tol <- 1e-5
+toXYZ <- vapply(
+  dimnames(fromXYZ)[[3]],
+  function(x) {
+    all(
+      abs(
+        grDevices2a:::convertColor(
+          fromXYZ[,,x], from=x, to=spaces.conv[['XYZ']]
+        ) - XYZ
+      ) < tol
+    )
+  },
+  logical(1)
+)
+stopifnot(all(toXYZ))
+
+## Compare to same version vectorized, but only do one leg since
+## we have the check above
+##
+## Note: we need clip=FALSE b/c the new color converters are not marked as RGB
+## even when they are RGB, which changes clip behavior.
+
+cols1 <- t(col2rgb(rainbow(1e3))) / 255 * .7 + .15
+XYZ1 <- grDevices2a::convertColor(cols1, 'sRGB', 'XYZ')
+system.time(
+  fromXYZ1 <- lapply(
+    spaces.conv, grDevices2a::convertColor,
+    from=spaces.conv[['XYZ']], color=XYZ1, clip=FALSE
+  )
+)
+system.time(
+  fromXYZ2 <- lapply(
+    grDevices2a::colorspaces, grDevices2a::convertColor,
+    from='XYZ', color=XYZ1, clip=FALSE
+  )
+)
+## round to 5 due to RGB colorspaces that we regenerated as normal
+## colorspaces
+
+fromXYZ1 <- lapply(fromXYZ1, round, 5)
+fromXYZ2 <- lapply(fromXYZ2, round, 5)
+# Map(all.equal, fromXYZ1, fromXYZ2)
+stopifnot(all.equal(fromXYZ1, fromXYZ2, check.attributes=FALSE))
+
+## Test corner cases; the zero rows only work with new internally
+## vectorized method
+
+# try(
+#   fromXYZ0.0 <- lapply(
+#     grDevices0::colorspaces, grDevices0::convertColor,
+#     from='XYZ', color=XYZ1[0,], clip=FALSE
+# ) )
+# try(
+#   fromXYZ1.0 <- lapply(
+#     spaces.conv, grDevices2a::convertColor,
+#     from=spaces.conv[['XYZ']], color=XYZ1[0,], clip=FALSE
+# ) )
+# fromXYZ2.0 <- lapply(
+#   grDevices2a::colorspaces, grDevices2a::convertColor,
+#   from='XYZ', color=XYZ1[0,], clip=FALSE
+# )
+
+fromXYZ1.1 <- lapply(
+  spaces.conv, grDevices2a::convertColor,
+  from=spaces.conv[['XYZ']], color=XYZ1[1,], clip=FALSE
+)
+fromXYZ2.1 <- lapply(
+  grDevices2a::colorspaces, grDevices2a::convertColor,
+  from='XYZ', color=XYZ1[1,], clip=FALSE
+)
+fromXYZ1.1 <- lapply(fromXYZ1, round, 5)
+fromXYZ2.1 <- lapply(fromXYZ2, round, 5)
+stopifnot(all.equal(fromXYZ1.1, fromXYZ2.1, check.attributes=FALSE))
+
 # - Performance ----------------------------------------------------------------
 
 if(FALSE) {
@@ -343,7 +441,7 @@ if(FALSE) {
 
   ## try smaller matrices to make sure performance is not degraded.
 
-  space.ten <- 
+  space.ten <-
     lapply(space.input, function(x) x[seq(1, nrow(x), length.out=10),])
 
   cc0t.10 <- color_to_color(space.ten, fun=grDevices0::convertColor, time=100)
