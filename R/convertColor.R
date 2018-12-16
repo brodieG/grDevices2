@@ -80,7 +80,7 @@ make.rgb <-
     }
     if (is.null(name)) name <- deparse(sys.call())[1L]
     RGBcolorConverter(toXYZ = toXYZ, fromXYZ = toRGB, gamma = gamma,
-                      white = white, name = name)
+                      white = white, name = name, vectorized = TRUE)
 }
 
 print.colorConverter <- function(x,...) {
