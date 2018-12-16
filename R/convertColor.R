@@ -79,10 +79,8 @@ make.rgb <-
       if(nrow(res) == 1L) res[1L, ,drop=TRUE] else res
     }
     if (is.null(name)) name <- deparse(sys.call())[1L]
-    rval <- list(toXYZ = toXYZ, fromXYZ = toRGB, gamma = gamma,
-                 reference.white = white, name = name)
-    class(rval) <- c("RGBcolorConverter", "colorConverter")
-    rval
+    RGBcolorConverter(toXYZ = toXYZ, fromXYZ = toRGB, gamma = gamma,
+                      white = white, name = name)
 }
 
 print.colorConverter <- function(x,...) {
@@ -134,12 +132,19 @@ colorConverter <-
                     vectorizeConverter(fromXYZ)
               else fromXYZ
 
+    ## redundant `white` / `reference.white` for backwards-compatibility
+    ## see https://bugs.r-project.org/bugzilla/show_bug.cgi?id=17473
     rval <- list(toXYZ = toXYZv, fromXYZ = fromXYZv,
-                 name = name, white = white)
+                 name = name, white = white, reference.white = white)
     class(rval) <- "colorConverter"
     rval
 }
-
+RGBcolorConverter <- function(..., gamma) {
+    rval <- colorConverter(...)
+    rval[['gamma']] <- gamma
+    class(rval) <- c("RGBcolorConverter", class(rval))
+    rval
+}
 colorspaces <-
     list("XYZ" =
          colorConverter(toXYZ = function(x,w) x,
