@@ -31,6 +31,7 @@ if(!require(microbenchmark)) warning("Timed tests require microbenchmark")
 
 source(
   file.path(system.file(package='grDevices2a'), 'tests', 'extra', 'utils.R')
+  # file.path('extra', 'utils.R')
 )
 
 ranges.raw <- c(
